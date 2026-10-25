@@ -239,19 +239,8 @@ mediapipe_proto_library(
 cc_library(
     name = "image_transformation_calculator",
     srcs = ["image_transformation_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-framework CoreVideo",
-            "-framework MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
+    linkopts = [],
     deps = [
         ":image_transformation_calculator_cc_proto",
         ":rotation_mode_cc_proto",
@@ -286,19 +275,8 @@ cc_library(
     name = "image_cropping_calculator",
     srcs = ["image_cropping_calculator.cc"],
     hdrs = ["image_cropping_calculator.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-framework CoreVideo",
-            "-framework MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
+    linkopts = [],
     deps = [
         ":image_cropping_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",

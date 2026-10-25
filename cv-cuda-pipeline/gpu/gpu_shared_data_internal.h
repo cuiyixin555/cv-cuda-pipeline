@@ -39,15 +39,9 @@
 #include "cv-cuda-pipeline/gpu/gpu_buffer_multi_pool.h"
 #include "cv-cuda-pipeline/gpu/multi_pool.h"
 
-#ifdef __APPLE__
-#include "cv-cuda-pipeline/gpu/cv_texture_cache_manager.h"
-#endif  // defined(__APPLE__)
 
 namespace mediapipe {
 
-#if MEDIAPIPE_METAL_ENABLED
-class MetalSharedResources;
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 // TODO: rename to GpuService or GpuManager or something.
 class GpuResources {
@@ -94,9 +88,6 @@ class GpuResources {
   // Shared buffer pool.
   GpuBufferMultiPool& gpu_buffer_pool() { return gpu_buffer_pool_; }
 
-#if MEDIAPIPE_METAL_ENABLED
-  MetalSharedResources& metal_shared() { return *metal_shared_; }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   absl::Status PrepareGpuNode(CalculatorNode* node);
 
@@ -135,16 +126,10 @@ class GpuResources {
   std::unique_ptr<GlContextMapType, void (*)(GlContextMapType*)> gl_key_context_
       ABSL_GUARDED_BY(mutex_);
 
-#ifdef MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  std::shared_ptr<CvTextureCacheManager> texture_caches_;
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
   // The pool must be destroyed before the GL context.
   GpuBufferMultiPool gpu_buffer_pool_;
 
-#if MEDIAPIPE_METAL_ENABLED
-  std::unique_ptr<MetalSharedResources> metal_shared_;
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   std::map<std::string, std::shared_ptr<Executor>> named_executors_
       ABSL_GUARDED_BY(mutex_);

@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 
-load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//cv-cuda-pipeline/framework/port:build_config.bzl", "mediapipe_proto_library")
@@ -22,13 +21,6 @@ licenses(["notice"])
 
 package(default_visibility = ["//visibility:public"])
 
-selects.config_setting_group(
-    name = "apple_or_disable_gpu",
-    match_any = [
-        "//cv-cuda-pipeline/gpu:disable_gpu",
-        "//cv-cuda-pipeline:apple",
-    ],
-)
 
 mediapipe_proto_library(
     name = "concatenate_vector_calculator_proto",
@@ -332,15 +324,7 @@ cc_library(
     name = "concatenate_vector_calculator",
     srcs = ["concatenate_vector_calculator.cc"],
     hdrs = ["concatenate_vector_calculator.h"],
-    copts = select({
-        # Needed for "//cv-cuda-pipeline/framework/formats:tensor" compatibility on Apple
-        # platforms for Metal pulled in via the tensor.h header.
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":concatenate_vector_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -356,7 +340,7 @@ cc_library(
         "//cv-cuda-pipeline/util:render_data_cc_proto",
         "@litert//tflite:framework",
     ] + select({
-        ":apple_or_disable_gpu": [],
+        "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": [
             "@litert//tflite/delegates/gpu/gl:gl_buffer",
         ],
@@ -1001,13 +985,7 @@ cc_library(
     name = "split_vector_calculator",
     srcs = ["split_vector_calculator.cc"],
     hdrs = ["split_vector_calculator.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":split_vector_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -1025,7 +1003,7 @@ cc_library(
         "@litert//tflite:framework",
         "@litert//tflite/kernels:builtin_ops",
     ] + select({
-        ":apple_or_disable_gpu": [],
+        "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": [
             "@litert//tflite/delegates/gpu/gl:gl_buffer",
         ],

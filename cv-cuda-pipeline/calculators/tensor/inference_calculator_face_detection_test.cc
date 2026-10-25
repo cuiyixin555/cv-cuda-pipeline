@@ -59,7 +59,7 @@ const std::vector<Param>& GetParams() {
     static std::vector<Param> p;
     p.push_back({"TfLite", "Cpu", "face_detection_expected.png"});
     p.back().delegate.mutable_tflite();
-#if !(defined(__EMSCRIPTEN__))
+#if !defined(__EMSCRIPTEN__)
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
     p.push_back({"GlAdvanced", "GlAdvanced", "face_detection_expected_gl.png"});
 #else
@@ -125,7 +125,7 @@ TEST_P(InferenceCalculatorTest, TestFaceDetection) {
 
   // Load test image.
   std::unique_ptr<ImageFrame> input_image = LoadTestPng(
-      file::JoinPath(GetTestRootDir(), "cv-cuda-pipeline/objc/testdata/sergey.png"));
+      file::JoinPath(GetTestRootDir(), "cv-cuda-pipeline/framework/debug/testdata/sergey.png"));
   ASSERT_THAT(input_image, testing::NotNull());
 
   std::unique_ptr<ImageFrame> expected_image =

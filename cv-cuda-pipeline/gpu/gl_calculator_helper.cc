@@ -181,15 +181,7 @@ GpuBuffer GlCalculatorHelper::GpuBufferWithImageFrame(
 
 GpuBuffer GlCalculatorHelper::GpuBufferCopyingImageFrame(
     const ImageFrame& image_frame) {
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  auto maybe_buffer = CreateCVPixelBufferCopyingImageFrame(image_frame);
-  // Converts absl::StatusOr to absl::Status since ABSL_CHECK_OK() currently
-  // only deals with absl::Status in MediaPipe OSS.
-  ABSL_CHECK_OK(maybe_buffer);
-  return GpuBuffer(std::move(maybe_buffer).value());
-#else
   return GpuBuffer(GlTextureBuffer::Create(image_frame));
-#endif  // !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 }
 
 void GlCalculatorHelper::GetGpuBufferDimensions(const GpuBuffer& pixel_buffer,

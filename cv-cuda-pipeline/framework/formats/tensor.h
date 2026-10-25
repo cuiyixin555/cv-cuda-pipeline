@@ -50,17 +50,15 @@
 
 namespace mediapipe {
 // Tensor is a container of multi-dimensional data that supports sharing the
-// content across different backends and APIs, currently: CPU / Metal / OpenGL.
+// content across different backends and APIs: CPU, OpenGL, and WebGPU.
 // Texture2DView is limited to 4 dimensions.
 // The content is accessible through requesting device specific views.
 // Acquiring a view guarantees that the content is not changed by another thread
 // until the view is released.
 //
-// Tensor::MtlBufferView view = tensor.GetMtlBufferWriteView(mtl_device);
-// mtl_device is used to create MTLBuffer
-// id<MTLBuffer> buffer = view.buffer();
 // For OpenGL the code below must be called by a thread with valid OpenGL ES
 // context bound:
+// auto view = tensor.GetOpenGlBufferWriteView();
 // GLuint buffer = view.buffer();
 // Then the buffer can be bound to the GPU command buffer.
 // ...binding the buffer to the command buffer...
@@ -73,7 +71,6 @@ namespace mediapipe {
 // float* pointer = view.buffer<float>();
 // ...reading the cpu memory...
 
-struct MtlResources;
 class Tensor {
   class View {
    public:
@@ -367,10 +364,9 @@ class Tensor {
 
   bool ready_on_cpu() const { return valid_ & kValidCpu; }
   bool ready_on_gpu() const {
-    return valid_ & (kValidMetalBuffer | kValidOpenGlBuffer |
+    return valid_ & (kValidOpenGlBuffer |
                      kValidWebGpuTexture2d | kValidOpenGlTexture2d);
   }
-  bool ready_as_metal_buffer() const { return valid_ & kValidMetalBuffer; }
   bool ready_as_opengl_buffer() const { return valid_ & kValidOpenGlBuffer; }
   bool ready_as_opengl_texture_2d() const {
     return valid_ & kValidOpenGlTexture2d;
@@ -380,8 +376,6 @@ class Tensor {
   }
 
  private:
-  friend class MtlBufferView;
-
   // RAII object to own CPU buffer and release callback. It is intended to be
   // used internally to access tensor CPU data when lock is already in place.
   template <typename T>
@@ -429,13 +423,12 @@ class Tensor {
   enum {
     kValidNone = 0,
     kValidCpu = 1 << 0,
-    kValidMetalBuffer = 1 << 1,
     kValidOpenGlBuffer = 1 << 2,
     kValidOpenGlTexture2d = 1 << 3,
     kValidWebGpuTexture2d = 1 << 4,
   };
   // A list of resource which are currently allocated and synchronized between
-  // each-other: valid_ = kValidCpu | kValidMetalBuffer;
+  // each-other: valid_ = kValidCpu | kValidOpenGlBuffer;
   mutable int valid_ = 0;
   // The mutex is locked by Get*View and is kept by all Views.
   mutable absl::Mutex view_mutex_;
@@ -443,9 +436,6 @@ class Tensor {
   mutable void* cpu_buffer_ = nullptr;
   absl::Status AllocateCpuBuffer() const;
   void FreeCpuBuffer() const;
-  // Forward declaration of the MtlResources provides compile-time verification
-  // of ODR if this header includes any actual code that uses MtlResources.
-  mutable std::unique_ptr<MtlResources> mtl_resources_;
 
 #if MEDIAPIPE_USE_WEBGPU
   mutable wgpu::Device webgpu_device_;

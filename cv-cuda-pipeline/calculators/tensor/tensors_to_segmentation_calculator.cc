@@ -40,9 +40,6 @@
 
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 #include "cv-cuda-pipeline/calculators/tensor/tensors_to_segmentation_converter_gl_buffer.h"
-#elif MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/calculators/tensor/tensors_to_segmentation_converter_metal.h"
-#import "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
 #else
 #include "cv-cuda-pipeline/calculators/tensor/tensors_to_segmentation_converter_gl_texture.h"
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
@@ -81,9 +78,6 @@ class TensorsToSegmentationCalculator
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
         ABSL_ASSIGN_OR_RETURN(gpu_converter_,
                               CreateGlBufferConverter(cc, options_));
-#elif MEDIAPIPE_METAL_ENABLED
-        ABSL_ASSIGN_OR_RETURN(gpu_converter_,
-                              CreateMetalConverter(cc, options_));
 #else
         ABSL_ASSIGN_OR_RETURN(gpu_converter_,
                               CreateGlTextureConverter(cc, options_));
@@ -120,10 +114,6 @@ absl::Status TensorsToSegmentationCalculator::UpdateContract(
 #if !MEDIAPIPE_DISABLE_GPU
     ABSL_RETURN_IF_ERROR(mediapipe::GlCalculatorHelper::UpdateContract(
         &cc.GetGenericContract(), /*request_gpu_as_optional=*/true));
-#if MEDIAPIPE_METAL_ENABLED
-    ABSL_RETURN_IF_ERROR([MPPMetalHelper updateContract:&cc.GetGenericContract()
-                                   requestGpuAsOptional:true]);
-#endif  // MEDIAPIPE_METAL_ENABLED
 #endif  // !MEDIAPIPE_DISABLE_GPU
   }
 
@@ -152,27 +142,8 @@ absl::Status TensorsToSegmentationCalculator::Process(
 
   bool use_gpu = false;
   if (CanUseGpu()) {
-#if MEDIAPIPE_METAL_ENABLED && !MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
-    // The Metal converter writes the mask into a Metal view of a GpuBuffer and
-    // then reads it back through a GL view of that same GpuBuffer. Those are
-    // only the same memory while GpuBuffers are CVPixelBuffer-backed, where
-    // both views wrap one IOSurface.
-    //
-    // Where the pool vends GlTextureBuffer instead (macOS, which needs
-    // GL_TEXTURE_2D rather than the GL_TEXTURE_RECTANGLE_ARB that CoreVideo
-    // hands out), asking for a Metal texture finds no CVPixelBuffer storage and
-    // allocates a detached copy. The Metal kernel writes the mask into that
-    // copy, but the GL view still reads the original GpuBuffer, which was never
-    // written to, so the output mask is all zeros.
-    //
-    // The CPU converter has no such split. On Apple it is also behaviorally
-    // identical: IsGpuOriginAtBottom() is always false there, so the Metal
-    // converter's optional Y flip is never active and neither converter flips.
-    use_gpu = false;
-#else
     // Use GPU processing only if at least one input tensor is already on GPU.
     use_gpu = input_tensor->ready_on_gpu();
-#endif  // MEDIAPIPE_METAL_ENABLED &&
         // !MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
   }
 

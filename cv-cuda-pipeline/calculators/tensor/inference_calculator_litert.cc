@@ -40,9 +40,6 @@
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
-#if MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 namespace mediapipe {
 namespace api2 {
@@ -163,14 +160,6 @@ InferenceCalculatorLiteRtImpl::CreateInferenceRunner(CalculatorContext* cc) {
           litert_service.GetDispatchLibraryPath());
     }
   }
-#if MEDIAPIPE_METAL_ENABLED
-  void* metal_helper = nullptr;
-  MPPMetalHelper* helper = nil;
-  if (UseGpu(options)) {
-    helper = [[MPPMetalHelper alloc] initWithCalculatorContext:cc];
-    metal_helper = (__bridge void*)helper;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   auto get_glcontext_fn = [&]() -> std::shared_ptr<mediapipe::GlContext> {
 #if MEDIAPIPE_DISABLE_GPU
@@ -190,9 +179,6 @@ InferenceCalculatorLiteRtImpl::CreateInferenceRunner(CalculatorContext* cc) {
 #if defined(__EMSCRIPTEN__)
       /*.webgpu_service=*/nullptr,
 #endif  // __EMSCRIPTEN__
-#if MEDIAPIPE_METAL_ENABLED
-      metal_helper,
-#endif  // MEDIAPIPE_METAL_ENABLED
       std::move(litert_options), system_handles);
 }
 

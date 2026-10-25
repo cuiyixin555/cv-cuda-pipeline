@@ -64,20 +64,4 @@ cc_binary(
     deps = [":text_proofreader_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/text/text_proofreader:libtext_proofreader.dylib
-cc_binary(
-    name = "libtext_proofreader.dylib",
-    linkopts = [
-        "-Wl,-install_name,libtext_proofreader.dylib",
-        "-fvisibility=hidden",
-        "-Wl,-z,muldefs",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":text_proofreader_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

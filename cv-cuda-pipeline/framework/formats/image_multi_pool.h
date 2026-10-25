@@ -33,13 +33,8 @@
 #if !MEDIAPIPE_DISABLE_GPU
 #include "cv-cuda-pipeline/gpu/gpu_buffer.h"
 
-#ifdef __APPLE__
-#include "cv-cuda-pipeline/gpu/pixel_buffer_pool_util.h"
-#endif  // __APPLE__
 
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 #include "cv-cuda-pipeline/gpu/gl_texture_buffer_pool.h"
-#endif  // !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
 namespace mediapipe {
@@ -57,19 +52,6 @@ class ImageMultiPool {
   Image GetBuffer(int width, int height, bool use_gpu,
                   ImageFormat::Format format /*= ImageFormat::SRGBA*/);
 
-#if !MEDIAPIPE_DISABLE_GPU
-#ifdef __APPLE__
-  // TODO: add tests for the texture cache registration.
-
-  // Inform the pool of a cache that should be flushed when it is low on
-  // reusable buffers.
-  void RegisterTextureCache(mediapipe::CVTextureCacheType cache);
-
-  // Remove a texture cache from the list of caches to be flushed.
-  void UnregisterTextureCache(mediapipe::CVTextureCacheType cache);
-
-#endif  // defined(__APPLE__)
-#endif  // !MEDIAPIPE_DISABLE_GPU
 
   static std::size_t RotateLeftN(std::size_t x, int n) {
     return (x << n) | (x >> (std::numeric_limits<size_t>::digits - n));
@@ -102,11 +84,7 @@ class ImageMultiPool {
 
  private:
 #if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  typedef CFHolder<CVPixelBufferPoolRef> SimplePoolGpu;
-#else
   typedef std::shared_ptr<mediapipe::GlTextureBufferPool> SimplePoolGpu;
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   SimplePoolGpu MakeSimplePoolGpu(IBufferSpec spec);
   Image GetBufferFromSimplePool(IBufferSpec spec, const SimplePoolGpu& pool);
 
@@ -129,13 +107,6 @@ class ImageMultiPool {
   // to the pool.
   std::deque<IBufferSpec> buffer_specs_cpu_;
 
-#if !MEDIAPIPE_DISABLE_GPU
-#ifdef __APPLE__
-  // Texture caches used with this pool.
-  std::vector<CFHolder<mediapipe::CVTextureCacheType>> texture_caches_
-      GUARDED_BY(mutex_gpu_);
-#endif  // defined(__APPLE__)
-#endif  // !MEDIAPIPE_DISABLE_GPU
 };
 
 // IBufferSpec equality operators

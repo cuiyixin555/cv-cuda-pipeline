@@ -154,19 +154,4 @@ cc_binary(
     deps = [":face_landmarker_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/face_landmarker:libface_landmarker.dylib
-cc_binary(
-    name = "libface_landmarker.dylib",
-    linkopts = [
-        "-Wl,-install_name,libface_landmarker.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":face_landmarker_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

@@ -96,9 +96,6 @@ don't require TFLite inference on GPU with:
 $ bazel build --copt -DMESA_EGL_NO_X11_HEADERS --copt -DEGL_NO_X11 --copt -DMEDIAPIPE_DISABLE_GL_COMPUTE <my-target>
 ```
 
-Note: MEDIAPIPE_DISABLE_GL_COMPUTE is already defined automatically on all Apple
-systems (Apple doesn't support OpenGL ES 3.1+).
-
 ## TensorFlow CUDA Support and Setup on Linux Desktop
 
 MediaPipe framework doesn't require CUDA for GPU compute and rendering. However,

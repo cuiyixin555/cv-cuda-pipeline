@@ -40,7 +40,6 @@ enum MpHostEnvironment {
 enum MpHostSystem {
   MP_HOST_SYSTEM_UNKNOWN = 0,
   MP_HOST_SYSTEM_LINUX = 1,
-  MP_HOST_SYSTEM_MAC = 2,
   MP_HOST_SYSTEM_WINDOWS = 3,
 };
 

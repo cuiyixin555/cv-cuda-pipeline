@@ -16,44 +16,6 @@ load("@mediapipe//cv-cuda-pipeline:platforms.bzl", "config_setting_and_platform"
 
 licenses(["notice"])  # Apache 2.0
 
-# Generic MacOS.
-config_setting(
-    name = "macos",
-    constraint_values = [
-        "@platforms//os:macos",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-# MacOS x86 64-bit.
-config_setting_and_platform(
-    name = "macos_x86_64",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//cpu:x86_64",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-# MacOS ARM64.
-config_setting_and_platform(
-    name = "macos_arm64",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//cpu:arm64",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-alias(
-    name = "apple",
-    actual = select({
-        ":macos": ":macos",
-        "//conditions:default": ":macos",
-    }),
-    visibility = ["//visibility:public"],
-)
-
 # Windows 64-bit.
 config_setting_and_platform(
     name = "windows",

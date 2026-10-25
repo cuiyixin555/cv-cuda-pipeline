@@ -269,13 +269,6 @@ Tensor::ElementType GetOutputTensorType(bool uses_gpu,
 }
 
 int GetNumOutputChannels(const mediapipe::Image& image) {
-#if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_METAL_ENABLED
-  if (image.UsesGpu()) {
-    return 4;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
-#endif  // !MEDIAPIPE_DISABLE_GPU
   // TODO: Add a unittest here to test the behavior on GPU, i.e.
   // failure.
   // Only output channel == 1 when running on CPU and the input image channel

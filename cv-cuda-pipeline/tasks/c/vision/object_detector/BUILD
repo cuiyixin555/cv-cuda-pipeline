@@ -110,25 +110,4 @@ cc_binary(
     deps = [":object_detector_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/object_detector:libobject_detector.dylib
-cc_binary(
-    name = "libobject_detector.dylib",
-    linkopts = [
-        "-Wl,-install_name,libobject_detector.dylib",
-        "-fvisibility=hidden",
-        "-Wl,-export_symbol,_MpObjectDetectorCreate",
-        "-Wl,-export_symbol,_MpObjectDetectorDetectImage",
-        "-Wl,-export_symbol,_MpObjectDetectorDetectForVideo",
-        "-Wl,-export_symbol,_MpObjectDetectorDetectAsync",
-        "-Wl,-export_symbol,_MpObjectDetectorCloseResult",
-        "-Wl,-export_symbol,_MpObjectDetectorClose",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":object_detector_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

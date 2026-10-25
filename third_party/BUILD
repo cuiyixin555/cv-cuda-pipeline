@@ -38,9 +38,6 @@ cc_library(
     name = "glog",
     visibility = ["//visibility:public"],
     deps = select({
-        "//cv-cuda-pipeline:macos": [
-            "@com_github_glog_glog//:glog",
-        ],
         "//cv-cuda-pipeline:windows": [
             "@com_github_glog_glog_windows//:glog",
         ],
@@ -171,14 +168,7 @@ cmake(
         "-lpthread",
         "-lrt",
     ],
-    out_shared_libs = select({
-        "@bazel_tools//src/conditions:darwin": ["libopencv_%s.%s.dylib" % (module, OPENCV_SO_VERSION) for module in OPENCV_MODULES],
-        # Only the shared objects listed here will be linked in the directory
-        # that Bazel adds to the RUNPATH of dependent executables. You cannot
-        # list both the versioned and unversioned name of the .so, and the
-        # versioned name is the one that the executables actually reference.
-        "//conditions:default": ["libopencv_%s.so.%s" % (module, OPENCV_SO_VERSION) for module in OPENCV_MODULES],
-    }) if OPENCV_SHARED_LIBS else None,
+    out_shared_libs = ["libopencv_%s.so.%s" % (module, OPENCV_SO_VERSION) for module in OPENCV_MODULES] if OPENCV_SHARED_LIBS else None,
     out_static_libs = [
         "libopencv_%s.a" % module
         for module in OPENCV_MODULES
@@ -188,7 +178,6 @@ cmake(
 alias(
     name = "opencv_binary",
     actual = select({
-        "//cv-cuda-pipeline:macos": "@macos_opencv//:opencv",
         "//cv-cuda-pipeline:windows": "@windows_opencv//:opencv",
         "//conditions:default": "@linux_opencv//:opencv",
     }),
@@ -209,12 +198,7 @@ config_setting(
 cc_library(
     name = "libffmpeg",
     visibility = ["//visibility:public"],
-    deps = select({
-        "//cv-cuda-pipeline:macos": [
-            "@macos_ffmpeg//:libffmpeg",
-        ],
-        "//conditions:default": [
+    deps = [
             "@linux_ffmpeg//:libffmpeg",
         ],
-    }),
 )

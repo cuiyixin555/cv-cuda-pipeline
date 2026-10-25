@@ -450,7 +450,7 @@ absl::Status BoxTrackerCalculator::GetContract(CalculatorContract* cc) {
     cc->Outputs().Tag(kRaBoxesTag).Set<TimedBoxProtoList>();
   }
 
-#if (defined(__APPLE__)) || (defined(__EMSCRIPTEN__))
+#if defined(__EMSCRIPTEN__)
   RET_CHECK(!cc->InputSidePackets().HasTag(kInitialPosTag))
       << "Unsupported on mobile";
 #else
@@ -486,7 +486,7 @@ absl::Status BoxTrackerCalculator::Open(CalculatorContext* cc) {
     initial_pos_ = options_.initial_position();
   }
 
-#if (!(defined(__APPLE__))) && (!(defined(__EMSCRIPTEN__)))
+#if !defined(__EMSCRIPTEN__)
   if (cc->InputSidePackets().HasTag(kInitialPosTag)) {
     ABSL_LOG(INFO)
         << "Parsing: "

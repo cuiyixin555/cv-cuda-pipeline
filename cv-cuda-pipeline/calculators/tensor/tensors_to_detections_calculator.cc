@@ -29,36 +29,23 @@
 #include "cv-cuda-pipeline/framework/port/ret_check.h"
 #include "cv-cuda-pipeline/gpu/gpu_service.h"
 
-// Note: On Apple platforms MEDIAPIPE_DISABLE_GL_COMPUTE is automatically
-// defined in cv-cuda-pipeline/framework/port.h. Therefore,
-// "#ifndef MEDIAPIPE_DISABLE_GL_COMPUTE" and "#if MEDIAPIPE_METAL_ENABLED"
-// below are mutually exclusive.
 #ifndef MEDIAPIPE_DISABLE_GL_COMPUTE
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
 
-#if MEDIAPIPE_METAL_ENABLED
-#import <CoreVideo/CoreVideo.h>
-#import <Metal/Metal.h>
-#import <MetalKit/MetalKit.h>
-
-#include "cv-cuda-pipeline/framework/formats/tensor_mtl_buffer_view.h"
-#import "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#include "cv-cuda-pipeline/gpu/MPPMetalUtil.h"
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 namespace {
 constexpr int kNumInputTensorsWithAnchors = 3;
 constexpr int kNumCoordsPerBox = 4;
 
 bool CanUseGpu() {
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) || MEDIAPIPE_METAL_ENABLED
+#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
   // TODO: Configure GPU usage policy in individual calculators.
   constexpr bool kAllowGpuProcessing = true;
   return kAllowGpuProcessing;
 #else
   return false;
-#endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) || MEDIAPIPE_METAL_ENABLED
+#endif
 }
 }  // namespace
 
@@ -248,10 +235,6 @@ class TensorsToDetectionsCalculator : public Node {
   mediapipe::GlCalculatorHelper gpu_helper_;
   GLuint decode_program_;
   GLuint score_program_;
-#elif MEDIAPIPE_METAL_ENABLED
-  MPPMetalHelper* gpu_helper_ = nullptr;
-  id<MTLComputePipelineState> decode_program_;
-  id<MTLComputePipelineState> score_program_;
 #endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
   std::unique_ptr<Tensor> raw_anchors_buffer_;
   std::unique_ptr<Tensor> decoded_boxes_buffer_;
@@ -270,9 +253,6 @@ absl::Status TensorsToDetectionsCalculator::UpdateContract(
 #ifndef MEDIAPIPE_DISABLE_GL_COMPUTE
     ABSL_RETURN_IF_ERROR(mediapipe::GlCalculatorHelper::UpdateContract(
         cc, /*request_gpu_as_optional=*/true));
-#elif MEDIAPIPE_METAL_ENABLED
-    ABSL_RETURN_IF_ERROR(
-        [MPPMetalHelper updateContract:cc requestGpuAsOptional:true]);
 #endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
   }
 
@@ -283,11 +263,6 @@ absl::Status TensorsToDetectionsCalculator::Open(CalculatorContext* cc) {
   ABSL_RETURN_IF_ERROR(LoadOptions(cc));
 
   if (CanUseGpu() && cc->Service(mediapipe::kGpuService).IsAvailable()) {
-#ifndef MEDIAPIPE_DISABLE_GL_COMPUTE
-#elif MEDIAPIPE_METAL_ENABLED
-    gpu_helper_ = [[MPPMetalHelper alloc] initWithCalculatorContext:cc];
-    RET_CHECK(gpu_helper_);
-#endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
   }
 
   return absl::OkStatus();
@@ -593,94 +568,6 @@ absl::Status TensorsToDetectionsCalculator::ProcessGPU(
   ABSL_RETURN_IF_ERROR(ConvertToDetections(boxes, detection_scores.data(),
                                            detection_classes.data(),
                                            output_detections));
-#elif MEDIAPIPE_METAL_ENABLED
-  if (!anchors_init_) {
-    if (input_tensors.size() == kNumInputTensorsWithAnchors) {
-      RET_CHECK_EQ(input_tensors.size(), kNumInputTensorsWithAnchors);
-      auto command_buffer = [gpu_helper_ commandBuffer];
-      auto src_buffer = MtlBufferView::GetReadView(
-          input_tensors[tensor_mapping_.anchors_tensor_index()],
-          command_buffer);
-      auto dest_buffer =
-          MtlBufferView::GetWriteView(*raw_anchors_buffer_, command_buffer);
-      id<MTLBlitCommandEncoder> blit_command =
-          [command_buffer blitCommandEncoder];
-      [blit_command copyFromBuffer:src_buffer.buffer()
-                      sourceOffset:0
-                          toBuffer:dest_buffer.buffer()
-                 destinationOffset:0
-                              size:input_tensors[tensor_mapping_
-                                                     .anchors_tensor_index()]
-                                       .bytes()];
-      [blit_command endEncoding];
-      [command_buffer commit];
-    } else if (!kInAnchors(cc).IsEmpty()) {
-      const auto& anchors = *kInAnchors(cc);
-      auto raw_anchors_view = raw_anchors_buffer_->GetCpuWriteView();
-      ConvertAnchorsToRawValues(anchors, num_boxes_,
-                                raw_anchors_view.buffer<float>());
-    } else {
-      return absl::UnavailableError("No anchor data available.");
-    }
-    anchors_init_ = true;
-  }
-
-  // Use the scope to release the writable buffers' views before requesting the
-  // reading buffers' views.
-  id<MTLCommandBuffer> command_buffer = [gpu_helper_ commandBuffer];
-  command_buffer.label = @"DecodeAndScoreBoxes";
-  id<MTLComputeCommandEncoder> command_encoder =
-      [command_buffer computeCommandEncoder];
-  [command_encoder setComputePipelineState:decode_program_];
-  {
-    auto scored_boxes_view =
-        MtlBufferView::GetWriteView(*scored_boxes_buffer_, command_buffer);
-    auto decoded_boxes_view =
-        MtlBufferView::GetWriteView(*decoded_boxes_buffer_, command_buffer);
-    [command_encoder setBuffer:decoded_boxes_view.buffer() offset:0 atIndex:0];
-    auto input0_view = MtlBufferView::GetReadView(
-        input_tensors[tensor_mapping_.detections_tensor_index()],
-        command_buffer);
-    [command_encoder setBuffer:input0_view.buffer() offset:0 atIndex:1];
-    auto raw_anchors_view =
-        MtlBufferView::GetReadView(*raw_anchors_buffer_, command_buffer);
-    [command_encoder setBuffer:raw_anchors_view.buffer() offset:0 atIndex:2];
-    MTLSize decode_threads_per_group = MTLSizeMake(1, 1, 1);
-    MTLSize decode_threadgroups = MTLSizeMake(num_boxes_, 1, 1);
-    [command_encoder dispatchThreadgroups:decode_threadgroups
-                    threadsPerThreadgroup:decode_threads_per_group];
-
-    [command_encoder setComputePipelineState:score_program_];
-    [command_encoder setBuffer:scored_boxes_view.buffer() offset:0 atIndex:0];
-    auto input1_view = MtlBufferView::GetReadView(
-        input_tensors[tensor_mapping_.scores_tensor_index()], command_buffer);
-    [command_encoder setBuffer:input1_view.buffer() offset:0 atIndex:1];
-    MTLSize score_threads_per_group = MTLSizeMake(1, num_classes_, 1);
-    MTLSize score_threadgroups = MTLSizeMake(num_boxes_, 1, 1);
-    [command_encoder dispatchThreadgroups:score_threadgroups
-                    threadsPerThreadgroup:score_threads_per_group];
-    [command_encoder endEncoding];
-    [command_buffer commit];
-  }
-
-  // Output detections.
-  // TODO Adjust shader to avoid copying shader output twice.
-  std::vector<float> detection_scores(num_boxes_);
-  std::vector<int> detection_classes(num_boxes_);
-  {
-    auto scored_boxes_view = scored_boxes_buffer_->GetCpuReadView();
-    auto score_class_id_pairs = scored_boxes_view.buffer<float>();
-    for (int i = 0; i < num_boxes_; ++i) {
-      detection_scores[i] = score_class_id_pairs[i * 2];
-      detection_classes[i] = static_cast<int>(score_class_id_pairs[i * 2 + 1]);
-    }
-  }
-  auto decoded_boxes_view = decoded_boxes_buffer_->GetCpuReadView();
-  auto boxes = decoded_boxes_view.buffer<float>();
-  ABSL_RETURN_IF_ERROR(ConvertToDetections(boxes, detection_scores.data(),
-                                           detection_classes.data(),
-                                           output_detections));
-
 #else
   ABSL_LOG(ERROR) << "GPU input is not supported by this calculator.";
 #endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
@@ -698,12 +585,6 @@ absl::Status TensorsToDetectionsCalculator::Close(CalculatorContext* cc) {
       glDeleteProgram(score_program_);
     });
   }
-#elif MEDIAPIPE_METAL_ENABLED
-  decoded_boxes_buffer_ = nullptr;
-  scored_boxes_buffer_ = nullptr;
-  raw_anchors_buffer_ = nullptr;
-  decode_program_ = nil;
-  score_program_ = nil;
 #endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
 
   return absl::OkStatus();
@@ -1213,240 +1094,6 @@ void main() {
     return absl::OkStatus();
   }));
 
-#elif MEDIAPIPE_METAL_ENABLED
-  id<MTLDevice> device = gpu_helper_.mtlDevice;
-
-  // A shader to decode detection boxes.
-  std::string decode_src = absl::Substitute(
-      R"(
-#include <metal_stdlib>
-
-using namespace metal;
-
-kernel void decodeKernel(
-    device float*                   boxes       [[ buffer(0) ]],
-    device float*                   raw_boxes   [[ buffer(1) ]],
-    device float*                   raw_anchors [[ buffer(2) ]],
-    uint2                           gid         [[ thread_position_in_grid ]]) {
-
-  uint num_coords = uint($0);
-  int output_format_flag = int($1);
-  int apply_exponential = int($2);
-  int box_coord_offset = int($3);
-  int num_keypoints = int($4);
-  int keypt_coord_offset = int($5);
-  int num_values_per_keypt = int($6);
-)",
-      options_.num_coords(),  // box xywh
-      output_format_flag, options_.apply_exponential_on_box_size() ? 1 : 0,
-      options_.box_coord_offset(), options_.num_keypoints(),
-      options_.keypoint_coord_offset(), options_.num_values_per_keypoint());
-  decode_src += absl::Substitute(
-      R"(
-  float4 scale = float4(($0),($1),($2),($3));
-)",
-      options_.x_scale(), options_.y_scale(), options_.w_scale(),
-      options_.h_scale());
-  decode_src += R"(
-  uint g_idx = gid.x;
-  uint box_offset = g_idx * num_coords + uint(box_coord_offset);
-  uint anchor_offset = g_idx * uint(4);  // check kNumCoordsPerBox
-
-  float y_center, x_center, h, w;
-
-  if (output_format_flag == int(0)) {
-    y_center = raw_boxes[box_offset + uint(0)];
-    x_center = raw_boxes[box_offset + uint(1)];
-    h = raw_boxes[box_offset + uint(2)];
-    w = raw_boxes[box_offset + uint(3)];
-  } else if (output_format_flag == int(1)) {
-    x_center = raw_boxes[box_offset + uint(0)];
-    y_center = raw_boxes[box_offset + uint(1)];
-    w = raw_boxes[box_offset + uint(2)];
-    h = raw_boxes[box_offset + uint(3)];
-  } else if (output_format_flag == int(2)) {
-    x_center = (-raw_boxes[box_offset + uint(0)]
-                +raw_boxes[box_offset + uint(2)]) / 2.0;
-    y_center = (-raw_boxes[box_offset + uint(1)]
-                +raw_boxes[box_offset + uint(3)]) / 2.0;
-    w = raw_boxes[box_offset + uint(0)]
-      + raw_boxes[box_offset + uint(2)];
-    h = raw_boxes[box_offset + uint(1)]
-      + raw_boxes[box_offset + uint(3)];
-  }
-
-  float anchor_yc = raw_anchors[anchor_offset + uint(0)];
-  float anchor_xc = raw_anchors[anchor_offset + uint(1)];
-  float anchor_h  = raw_anchors[anchor_offset + uint(2)];
-  float anchor_w  = raw_anchors[anchor_offset + uint(3)];
-
-  x_center = x_center / scale.x * anchor_w + anchor_xc;
-  y_center = y_center / scale.y * anchor_h + anchor_yc;
-
-  if (apply_exponential == int(1)) {
-    h = exp(h / scale.w) * anchor_h;
-    w = exp(w / scale.z) * anchor_w;
-  } else {
-    h = (h / scale.w) * anchor_h;
-    w = (w / scale.z) * anchor_w;
-  }
-
-  float ymin = y_center - h / 2.0;
-  float xmin = x_center - w / 2.0;
-  float ymax = y_center + h / 2.0;
-  float xmax = x_center + w / 2.0;
-
-  boxes[box_offset + uint(0)] = ymin;
-  boxes[box_offset + uint(1)] = xmin;
-  boxes[box_offset + uint(2)] = ymax;
-  boxes[box_offset + uint(3)] = xmax;
-
-  if (num_keypoints > int(0)){
-    for (int k = 0; k < num_keypoints; ++k) {
-      int kp_offset =
-        int(g_idx * num_coords) + keypt_coord_offset + k * num_values_per_keypt;
-      float kp_y, kp_x;
-      if (output_format_flag == int(0)) {
-        kp_y = raw_boxes[kp_offset + int(0)];
-        kp_x = raw_boxes[kp_offset + int(1)];
-      } else {
-        kp_x = raw_boxes[kp_offset + int(0)];
-        kp_y = raw_boxes[kp_offset + int(1)];
-      }
-      boxes[kp_offset + int(0)] = kp_x / scale.x * anchor_w + anchor_xc;
-      boxes[kp_offset + int(1)] = kp_y / scale.y * anchor_h + anchor_yc;
-    }
-  }
-})";
-
-  {
-    // Shader program
-    NSString* library_source =
-        [NSString stringWithUTF8String:decode_src.c_str()];
-    NSError* error = nil;
-    id<MTLLibrary> library = [device newLibraryWithSource:library_source
-                                                  options:nullptr
-                                                    error:&error];
-    RET_CHECK(library != nil) << "Couldn't create shader library "
-                              << [[error localizedDescription] UTF8String];
-    id<MTLFunction> kernel_func = nil;
-    kernel_func = [library newFunctionWithName:@"decodeKernel"];
-    RET_CHECK(kernel_func != nil) << "Couldn't create kernel function.";
-    decode_program_ =
-        [device newComputePipelineStateWithFunction:kernel_func error:&error];
-    RET_CHECK(decode_program_ != nil) << "Couldn't create pipeline state " <<
-        [[error localizedDescription] UTF8String];
-    // Outputs
-    decoded_boxes_buffer_ =
-        absl::make_unique<Tensor>(Tensor::ElementType::kFloat32,
-                                  Tensor::Shape{1, num_boxes_ * num_coords_});
-    // Inputs
-    raw_anchors_buffer_ = absl::make_unique<Tensor>(
-        Tensor::ElementType::kFloat32,
-        Tensor::Shape{1, num_boxes_ * kNumCoordsPerBox});
-  }
-
-  // A shader to score detection boxes.
-  const std::string score_src = absl::Substitute(
-      R"(
-#include <metal_stdlib>
-
-using namespace metal;
-
-float optional_sigmoid(float x) {
-  int apply_sigmoid = int($1);
-  int apply_clipping_thresh = int($2);
-  float clipping_thresh = float($3);
-  if (apply_sigmoid == int(0)) return x;
-  if (apply_clipping_thresh == int(1)) {
-    x = clamp(x, -clipping_thresh, clipping_thresh);
-  }
-  x = 1.0 / (1.0 + exp(-x));
-  return x;
-}
-
-kernel void scoreKernel(
-    device float*             scored_boxes [[ buffer(0) ]],
-    device float*             raw_scores   [[ buffer(1) ]],
-    uint2                     tid          [[ thread_position_in_threadgroup ]],
-    uint2                     gid          [[ thread_position_in_grid ]]) {
-
-  uint num_classes = uint($0);
-  int apply_sigmoid = int($1);
-  int apply_clipping_thresh = int($2);
-  float clipping_thresh = float($3);
-  int ignore_class_0 = int($4);
-
-  uint g_idx = gid.x;   // box idx
-  uint s_idx = tid.y;   // score/class idx
-
-  // load all scores into shared memory
-  threadgroup float local_scores[$0];
-  float score = raw_scores[g_idx * num_classes + s_idx];
-  local_scores[s_idx] = optional_sigmoid(score);
-  threadgroup_barrier(mem_flags::mem_threadgroup);
-
-  // find max score in shared memory
-  if (s_idx == uint(0)) {
-    float max_score = -FLT_MAX;
-    float max_class = -1.0;
-    for (int i=ignore_class_0; i<int(num_classes); ++i) {
-      if (local_scores[i] > max_score) {
-        max_score = local_scores[i];
-        max_class = float(i);
-      }
-    }
-    scored_boxes[g_idx * uint(2) + uint(0)] = max_score;
-    scored_boxes[g_idx * uint(2) + uint(1)] = max_class;
-  }
-})",
-      num_classes_, options_.sigmoid_score() ? 1 : 0,
-      options_.has_score_clipping_thresh() ? 1 : 0,
-      options_.has_score_clipping_thresh() ? options_.score_clipping_thresh()
-                                           : 0,
-      !IsClassIndexAllowed(0));
-
-  // TODO support better filtering.
-  if (class_index_set_.is_allowlist) {
-    ABSL_CHECK_EQ(class_index_set_.values.size(),
-                  IsClassIndexAllowed(0) ? num_classes_ : num_classes_ - 1)
-        << "Only all classes  >= class 0  or  >= class 1";
-  } else {
-    ABSL_CHECK_EQ(class_index_set_.values.size(),
-                  IsClassIndexAllowed(0) ? 0 : 1)
-        << "Only ignore class 0 is allowed";
-  }
-
-  {
-    // Shader program
-    NSString* library_source =
-        [NSString stringWithUTF8String:score_src.c_str()];
-    NSError* error = nil;
-    id<MTLLibrary> library = [device newLibraryWithSource:library_source
-                                                  options:nullptr
-                                                    error:&error];
-    RET_CHECK(library != nil) << "Couldn't create shader library "
-                              << [[error localizedDescription] UTF8String];
-    id<MTLFunction> kernel_func = nil;
-    kernel_func = [library newFunctionWithName:@"scoreKernel"];
-    RET_CHECK(kernel_func != nil) << "Couldn't create kernel function.";
-    score_program_ =
-        [device newComputePipelineStateWithFunction:kernel_func error:&error];
-    RET_CHECK(score_program_ != nil) << "Couldn't create pipeline state " <<
-        [[error localizedDescription] UTF8String];
-    // Outputs
-    scored_boxes_buffer_ = absl::make_unique<Tensor>(
-        Tensor::ElementType::kFloat32, Tensor::Shape{1, num_boxes_ * 2});
-    // # filter classes supported is hardware dependent.
-    int max_wg_size = score_program_.maxTotalThreadsPerThreadgroup;
-    gpu_has_enough_work_groups_ = num_classes_ < max_wg_size;
-    if (!gpu_has_enough_work_groups_) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Hardware limitation: Processing will be done on CPU, because "
-          "num_classes %d exceeds the max work_group size %d.",
-          num_classes_, max_wg_size));
-    }
-  }
 #endif  // !defined(MEDIAPIPE_DISABLE_GL_COMPUTE)
 
   return absl::OkStatus();

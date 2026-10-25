@@ -533,9 +533,7 @@ absl::Status GlAnimationOverlayCalculator::Process(CalculatorContext* cc) {
       auto result = cc->Inputs().Tag("VIDEO").Value().Consume<GpuBuffer>();
       if (result.ok()) {
         input_frame = std::move(result).value();
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
         input_frame->internal_storage<GlTextureBuffer>()->Reuse();
-#endif
         width = input_frame->width();
         height = input_frame->height();
         dst = helper_.CreateSourceTexture(*input_frame);

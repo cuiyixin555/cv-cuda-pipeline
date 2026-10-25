@@ -27,13 +27,11 @@ alias(
     name = "gengen",
     actual = select(
         {
-            "@mediapipe//cv-cuda-pipeline:macos_x86_64": "@macos_x86_64_halide//:gengen",
-            "@mediapipe//cv-cuda-pipeline:macos_arm64": "@macos_arm_64_halide//:gengen",
             "@mediapipe//cv-cuda-pipeline:windows": "@windows_halide//:gengen",
             "@mediapipe//cv-cuda-pipeline:linux": "@linux_halide//:gengen",
             # Deliberately no //condition:default clause here.
         },
-        no_match_error = "Compiling Halide code requires that the build host is one of Linux x86-64, Windows x86-64, macOS x86-64, or macOS arm64.",
+        no_match_error = "Compiling Halide code requires a Linux x86-64 or Windows x86-64 build host.",
     ),
 )
 

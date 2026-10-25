@@ -39,13 +39,13 @@ int NumGroups(int size, int group_size) {
 }
 
 bool CanUseGpu() {
-#if !MEDIAPIPE_DISABLE_GPU || MEDIAPIPE_METAL_ENABLED
+#if !MEDIAPIPE_DISABLE_GPU
   // TODO: Configure GPU usage policy in individual calculators.
   constexpr bool kAllowGpuProcessing = true;
   return kAllowGpuProcessing;
 #else
   return false;
-#endif  // !MEDIAPIPE_DISABLE_GPU || MEDIAPIPE_METAL_ENABLED
+#endif
 }
 
 absl::StatusOr<std::tuple<int, int, int>> GetHwcFromDims(

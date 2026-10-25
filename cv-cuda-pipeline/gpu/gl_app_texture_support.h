@@ -90,9 +90,6 @@ absl::StatusOr<std::shared_ptr<Executor>> GetDefaultGpuExecutor(
 //           graph, GL_TEXTURE_2D, tex_id, tex_width, tex_height,
 //           mediapipe::GpuBufferFormat::kBGRA32,
 //           /*release_callback=*/nullptr));
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-ABSL_DEPRECATED("Prefer using CVPixelBufferRef on Apple platforms")
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 absl::StatusOr<Packet> WrapExternalGlTextureForGraph(
     const CalculatorGraph& graph, GLenum target, GLuint name, int width,
     int height, GpuBufferFormat format,

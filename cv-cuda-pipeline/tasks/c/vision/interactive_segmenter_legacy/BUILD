@@ -108,19 +108,4 @@ cc_binary(
     deps = [":interactive_segmenter_legacy_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/interactive_segmenter_legacy:libinteractive_segmenter_legacy.dylib
-cc_binary(
-    name = "libinteractive_segmenter_legacy.dylib",
-    linkopts = [
-        "-Wl,-install_name,libinteractive_segmenter_legacy.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":interactive_segmenter_legacy_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

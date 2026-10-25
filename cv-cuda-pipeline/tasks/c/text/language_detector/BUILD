@@ -66,22 +66,6 @@ cc_binary(
     deps = [":language_detector_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/text/language_detector:liblanguage_detector.dylib
-cc_binary(
-    name = "liblanguage_detector.dylib",
-    linkopts = [
-        "-Wl,-install_name,liblanguage_detector.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":language_detector_lib"],
-)
 
 cc_library(
     name = "language_detector",

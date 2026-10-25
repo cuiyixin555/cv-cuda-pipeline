@@ -40,19 +40,4 @@ cc_binary(
     deps = VISION_LIBRARIES,
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision:libvision:.dylib
-cc_binary(
-    name = "libvision.dylib",
-    linkopts = [
-        "-Wl,-install_name,libvision.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = VISION_LIBRARIES,
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

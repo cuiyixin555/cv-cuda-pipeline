@@ -33,21 +33,7 @@ more_selects.config_setting_negation(
     negate = ":disable_gpu",
 )
 
-selects.config_setting_group(
-    name = "platform_apple_with_gpu",
-    match_all = [
-        ":not_disable_gpu",
-        "//cv-cuda-pipeline:apple",
-    ],
-)
 
-selects.config_setting_group(
-    name = "platform_apple_without_gpu",
-    match_all = [
-        ":disable_gpu",
-        "//cv-cuda-pipeline:apple",
-    ],
-)
 
 mediapipe_proto_library(
     name = "tensors_to_image_calculator_proto",
@@ -62,21 +48,9 @@ mediapipe_proto_library(
 cc_library(
     name = "tensors_to_image_calculator",
     srcs = ["tensors_to_image_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     features = ["-layering_check"],  # allow depending on tensor_to_image_calculator_gpu_deps
-    linkopts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-framework CoreVideo",
-            "-framework MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
+    linkopts = [],
     deps = [
         ":tensors_to_image_calculator_cc_proto",
         "//cv-cuda-pipeline/calculators/tensor:image_to_tensor_utils",
@@ -102,13 +76,7 @@ cc_library(
     ] + select({
         "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": ["tensor_to_image_calculator_gpu_deps"],
-    }) + select({
-        "//cv-cuda-pipeline:apple": [
-            "//third_party/apple_frameworks:CoreVideo",
-            "//third_party/apple_frameworks:MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
+    }) + [],
     alwayslink = 1,
 )
 
@@ -129,14 +97,7 @@ cc_library(
             "@litert//tflite/delegates/gpu/gl:gl_texture",
             "@litert//tflite/delegates/gpu/gl/converters:util",
         ],
-        ":platform_apple_with_gpu": [
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//cv-cuda-pipeline/gpu:MPPMetalUtil",
-            "//cv-cuda-pipeline/gpu:gl_calculator_helper",
-            "//cv-cuda-pipeline/gpu:gpu_buffer",
-        ],
         # This setting is needed to allow bazel to build all targets on Mac with GPU disabled
-        ":platform_apple_without_gpu": [],
         "//conditions:default": [
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
             "//cv-cuda-pipeline/gpu:gl_quad_renderer",

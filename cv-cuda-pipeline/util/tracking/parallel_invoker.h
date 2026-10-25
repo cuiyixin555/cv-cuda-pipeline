@@ -78,10 +78,6 @@
 #ifdef PARALLEL_INVOKER_ACTIVE
 #include "cv-cuda-pipeline/framework/port/threadpool.h"
 
-#ifdef __APPLE__
-#include <dispatch/dispatch.h>
-#include <stdatomic.h>
-#endif
 
 #endif  // PARALLEL_INVOKER_ACTIVE
 
@@ -90,8 +86,7 @@ enum PARALLEL_INVOKER_MODE {
   PARALLEL_INVOKER_NONE = 0,         // Uses single threaded execution
   PARALLEL_INVOKER_THREAD_POOL = 1,  // Uses //thread/threadpool
   PARALLEL_INVOKER_OPENMP = 2,       // Uses OpenMP (requires compiler support)
-  PARALLEL_INVOKER_GCD = 3,          // Uses GCD (Apple)
-  PARALLEL_INVOKER_MAX_VALUE = 4,    // Increase when adding more modes
+  PARALLEL_INVOKER_MAX_VALUE = 3,    // Increase when adding more modes
 };
 
 extern int flags_parallel_invoker_mode;
@@ -141,81 +136,6 @@ class BlockedRange2D {
 // Singleton ThreadPool for parallel invoker.
 ThreadPool* ParallelInvokerThreadPool();
 
-#ifdef __APPLE__
-// Enable to allow GCD as an option beside ThreadPool.
-#define USE_PARALLEL_INVOKER_GCD 1
-#define CHECK_GCD_PARALLEL_WORK_COUNT DEBUG
-
-template <class Invoker>
-class ParallelInvokerGCDContext {
- public:
-  ParallelInvokerGCDContext(const Invoker& invoker, const BlockedRange& rows)
-      : local_invoker_(invoker), rows_(rows) {
-#if CHECK_GCD_PARALLEL_WORK_COUNT
-    count_ = 0;
-#endif
-  }
-
-  const Invoker& invoker() {
-#if CHECK_GCD_PARALLEL_WORK_COUNT
-    // Implicitly tracking the # of launched tasks at invoker retrieval.
-    atomic_fetch_add(&count_, 1);
-#endif
-    return local_invoker_;
-  }
-  const BlockedRange& rows() const { return rows_; }
-#if CHECK_GCD_PARALLEL_WORK_COUNT
-  const int count() { return atomic_load(&count_); }
-#endif
-
- private:
-  Invoker local_invoker_;
-  const BlockedRange& rows_;
-#if CHECK_GCD_PARALLEL_WORK_COUNT
-  _Atomic(int32_t) count_;
-#endif
-};
-
-template <class Invoker>
-class ParallelInvokerGCDContext2D : public ParallelInvokerGCDContext<Invoker> {
- public:
-  ParallelInvokerGCDContext2D(const Invoker& invoker, const BlockedRange& rows,
-                              const BlockedRange& cols)
-      : ParallelInvokerGCDContext<Invoker>(invoker, rows), cols_(cols) {}
-
-  const BlockedRange& cols() const { return cols_; }
-
- private:
-  BlockedRange cols_;
-};
-
-template <class Invoker>
-static void ParallelForGCDTask(void* context, size_t index) {
-  ParallelInvokerGCDContext<Invoker>* invoker_context =
-      static_cast<ParallelInvokerGCDContext<Invoker>*>(context);
-  const BlockedRange& all_tasks = invoker_context->rows();
-  int start = all_tasks.begin() + index * all_tasks.grain_size();
-  int end = std::min(all_tasks.end(), start + all_tasks.grain_size());
-  BlockedRange this_task(start, end, all_tasks.grain_size());
-
-  const Invoker& invoker = invoker_context->invoker();
-  invoker(this_task);
-}
-
-template <class Invoker>
-static void ParallelForGCDTask2D(void* context, size_t index) {
-  ParallelInvokerGCDContext2D<Invoker>* invoker_context =
-      static_cast<ParallelInvokerGCDContext2D<Invoker>*>(context);
-  // Partitioning across rows.
-  const BlockedRange& all_tasks = invoker_context->rows();
-  int start = all_tasks.begin() + index * all_tasks.grain_size();
-  int end = std::min(all_tasks.end(), start + all_tasks.grain_size());
-  BlockedRange this_task(start, end, all_tasks.grain_size());
-
-  const Invoker& invoker = invoker_context->invoker();
-  invoker(BlockedRange2D(this_task, invoker_context->cols()));
-}
-#endif  // __APPLE__
 
 #endif  // PARALLEL_INVOKER_ACTIVE
 // Simple wrapper for compatibility with below ParallelFor function.
@@ -228,20 +148,17 @@ void SerialFor(size_t start, size_t end, size_t grain_size,
 inline void CheckAndSetInvokerOptions() {
 #if defined(PARALLEL_INVOKER_ACTIVE)
 
-#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
   // Force usage of ThreadPool if an unsupported option is selected.
   if (flags_parallel_invoker_mode != PARALLEL_INVOKER_NONE &&
-#if defined(USE_PARALLEL_INVOKER_GCD)
-      flags_parallel_invoker_mode != PARALLEL_INVOKER_GCD &&
-#endif  // USE_PARALLEL_INVOKER_GCD
       flags_parallel_invoker_mode != PARALLEL_INVOKER_THREAD_POOL) {
     ABSL_LOG(WARNING) << "Unsupported invoker mode selected on this platform. "
                       << "Falling back to ThreadPool mode";
     flags_parallel_invoker_mode = PARALLEL_INVOKER_THREAD_POOL;
   }
-#endif  // __APPLE__ || __EMSCRIPTEN__
+#endif
 
-#if (!(defined(__APPLE__))) && (!(defined(__EMSCRIPTEN__)))
+#if !defined(__EMSCRIPTEN__)
   flags_parallel_invoker_mode = PARALLEL_INVOKER_THREAD_POOL;
 #endif
 
@@ -283,27 +200,6 @@ void ParallelFor(size_t start, size_t end, size_t grain_size,
 #ifdef PARALLEL_INVOKER_ACTIVE
   CheckAndSetInvokerOptions();
   switch (flags_parallel_invoker_mode) {
-#if defined(__APPLE__)
-    case PARALLEL_INVOKER_GCD: {
-      int iterations_remain = (end - start + grain_size - 1) / grain_size;
-      ABSL_CHECK_GT(iterations_remain, 0);
-      if (iterations_remain == 1) {
-        // Execute invoker serially.
-        invoker(BlockedRange(start, std::min(end, start + grain_size), 1));
-      } else {
-        BlockedRange all_tasks(start, end, grain_size);
-        ParallelInvokerGCDContext<Invoker> context(invoker, all_tasks);
-        dispatch_queue_t concurrent_queue =
-            dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-        dispatch_apply_f(iterations_remain, concurrent_queue, &context,
-                         ParallelForGCDTask<Invoker>);
-#if CHECK_GCD_PARALLEL_WORK_COUNT
-        ABSL_CHECK_EQ(iterations_remain, context.count());
-#endif
-      }
-      break;
-    }
-#endif  // __APPLE__
 
     case PARALLEL_INVOKER_THREAD_POOL: {
       int iterations_remain = (end - start + grain_size - 1) / grain_size;
@@ -394,30 +290,6 @@ void ParallelFor2D(size_t start_row, size_t end_row, size_t start_col,
 #ifdef PARALLEL_INVOKER_ACTIVE
   CheckAndSetInvokerOptions();
   switch (flags_parallel_invoker_mode) {
-#if defined(__APPLE__)
-    case PARALLEL_INVOKER_GCD: {
-      const int iterations_remain =
-          (end_row - start_row + grain_size - 1) / grain_size;
-      ABSL_CHECK_GT(iterations_remain, 0);
-      if (iterations_remain == 1) {
-        // Execute invoker serially.
-        invoker(BlockedRange2D(BlockedRange(start_row, end_row, 1),
-                               BlockedRange(start_col, end_col, 1)));
-      } else {
-        BlockedRange all_tasks(start_row, end_row, grain_size);
-        ParallelInvokerGCDContext2D<Invoker> context(
-            invoker, all_tasks, BlockedRange(start_col, end_col, grain_size));
-        dispatch_queue_t concurrent_queue =
-            dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-        dispatch_apply_f(iterations_remain, concurrent_queue, &context,
-                         ParallelForGCDTask2D<Invoker>);
-#if CHECK_GCD_PARALLEL_WORK_COUNT
-        ABSL_CHECK_EQ(iterations_remain, context.count());
-#endif
-      }
-      break;
-    }
-#endif  // __APPLE__
 
     case PARALLEL_INVOKER_THREAD_POOL: {
       int iterations_remain = end_row - start_row;  // Guarded by loop_mutex

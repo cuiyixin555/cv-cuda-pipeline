@@ -51,19 +51,7 @@ def sqlite_prebuilt_files():
         downloaded_file_path = "libsqlite_vector_store.lib",
     )
 
-    http_file(
-        name = "com_google_mediapipe_desktop_darwin_arm64_libsqlite_memory_store_a",
-        sha256 = "69ad14d76f28514fc3d4195edc71200f7c6301c4e660d1bdcc5e5d3e55373217",
-        urls = ["https://storage.googleapis.com/mediapipe-assets/prebuilts/desktop/darwin_arm64/libsqlite_memory_store.a?generation=1790030338856894"],
-        downloaded_file_path = "libsqlite_memory_store.a",
-    )
 
-    http_file(
-        name = "com_google_mediapipe_desktop_darwin_arm64_libsqlite_vector_store_a",
-        sha256 = "2579841fddcb5cabf0a4beb5730d54b5489e3ea4f69c10fe30e482d2248dd173",
-        urls = ["https://storage.googleapis.com/mediapipe-assets/prebuilts/desktop/darwin_arm64/libsqlite_vector_store.a?generation=1790030342755524"],
-        downloaded_file_path = "libsqlite_vector_store.a",
-    )
 
     http_file(
         name = "com_google_mediapipe_desktop_linux_arm64_libsqlite_memory_store_a",

@@ -25,12 +25,6 @@
 #include "cv-cuda-pipeline/framework/executor.h"
 #include "cv-cuda-pipeline/framework/port/logging.h"
 
-#ifdef __APPLE__
-#define AUTORELEASEPOOL @autoreleasepool
-#else
-#define AUTORELEASEPOOL
-#endif  // __APPLE__
-
 namespace mediapipe {
 namespace internal {
 
@@ -206,15 +200,11 @@ void SchedulerQueue::RunNextTask() {
         << "Scheduled a node that was closed. This should not happen.";
   }
 
-  // Apple platform APIs may rely on an autorelease pool, so create one here
-  // instead of relying on executors to provide it.
-  AUTORELEASEPOOL {
-    if (is_open_node) {
-      ABSL_DCHECK(!calculator_context);
-      OpenCalculatorNode(node);
-    } else {
-      RunCalculatorNode(node, calculator_context);
-    }
+  if (is_open_node) {
+    ABSL_DCHECK(!calculator_context);
+    OpenCalculatorNode(node);
+  } else {
+    RunCalculatorNode(node, calculator_context);
   }
 
   bool is_idle;

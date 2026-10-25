@@ -60,8 +60,6 @@ mediapipe::tasks::core::HostSystem CppConvertToHostSystem(
   switch (in) {
     case MP_HOST_SYSTEM_LINUX:
       return mediapipe::tasks::core::HostSystem::HOST_SYSTEM_LINUX;
-    case MP_HOST_SYSTEM_MAC:
-      return mediapipe::tasks::core::HostSystem::HOST_SYSTEM_MAC;
     case MP_HOST_SYSTEM_WINDOWS:
       return mediapipe::tasks::core::HostSystem::HOST_SYSTEM_WINDOWS;
     default:
@@ -120,8 +118,6 @@ MpHostSystem ToMpHostSystem(int host_system) {
       return MP_HOST_SYSTEM_UNKNOWN;
     case MP_HOST_SYSTEM_LINUX:
       return MP_HOST_SYSTEM_LINUX;
-    case MP_HOST_SYSTEM_MAC:
-      return MP_HOST_SYSTEM_MAC;
     case MP_HOST_SYSTEM_WINDOWS:
       return MP_HOST_SYSTEM_WINDOWS;
     default:

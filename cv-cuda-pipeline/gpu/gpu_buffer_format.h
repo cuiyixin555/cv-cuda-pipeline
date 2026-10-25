@@ -19,36 +19,6 @@
 #include <ostream>
 #include <string>
 
-#ifdef __APPLE__
-#include <CoreVideo/CoreVideo.h>
-#include <TargetConditionals.h>
-#define MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER 1
-
-// Whether the GPU buffer *pool* vends CVPixelBuffer-backed storage.
-//
-// This is deliberately narrower than MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER,
-// which says only that CVPixelBuffer support is compiled in. On macOS (CGL),
-// CVPixelBuffer-backed buffers are vended as GL_TEXTURE_RECTANGLE_ARB, which
-// cannot be read through sampler2D uniforms, and
-// CreateCVPixelBufferForImageFrame has no representation for 3-channel SRGB
-// frames. The pool therefore allocates GlTextureBuffer on macOS instead.
-//
-// Only the allocation path and the storage converters consult this macro. Other
-// call sites (ImageMultiPool, GlCalculatorHelper::GpuBufferCopyingImageFrame,
-// the ImageFrame<->GpuBuffer calculators, Image's CVPixelBuffer accessors)
-// still key off MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER and so remain
-// CVPixelBuffer-only on macOS. Those entry points are not exercised by the
-// macOS GPU graphs today and were already unsupported there; converting them is
-// intentionally left out of scope rather than overlooked.
-#if !TARGET_OS_OSX
-#define MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER 1
-#else
-#define MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER 0
-#endif
-
-#else
-#define MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER 0
-#endif  // defined(__APPLE__)
 
 #include "cv-cuda-pipeline/framework/formats/image_format.pb.h"
 #if !MEDIAPIPE_DISABLE_GPU
@@ -127,94 +97,6 @@ GpuBufferFormat GpuBufferFormatForGlFormat(GLenum format);
 ImageFormat::Format ImageFormatForGpuBufferFormat(GpuBufferFormat format);
 GpuBufferFormat GpuBufferFormatForImageFormat(ImageFormat::Format format);
 
-#ifdef __APPLE__
-
-inline OSType CVPixelFormatForGpuBufferFormat(GpuBufferFormat format) {
-  switch (format) {
-    case GpuBufferFormat::kBGRA32:
-      return kCVPixelFormatType_32BGRA;
-    case GpuBufferFormat::kRGBA32:
-      return kCVPixelFormatType_32RGBA;
-    case GpuBufferFormat::kGrayHalf16:
-      return kCVPixelFormatType_OneComponent16Half;
-    case GpuBufferFormat::kGrayFloat32:
-      return kCVPixelFormatType_OneComponent32Float;
-    case GpuBufferFormat::kOneComponent8:
-      return kCVPixelFormatType_OneComponent8;
-    case GpuBufferFormat::kOneComponent8Alpha:
-    case GpuBufferFormat::kOneComponent8Red:
-      return -1;
-    case GpuBufferFormat::kTwoComponent8:
-      return kCVPixelFormatType_TwoComponent8;
-    case GpuBufferFormat::kTwoComponentHalf16:
-      return kCVPixelFormatType_TwoComponent16Half;
-    case GpuBufferFormat::kTwoComponentFloat32:
-      return kCVPixelFormatType_TwoComponent32Float;
-    case GpuBufferFormat::kBiPlanar420YpCbCr8VideoRange:
-      return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-    case GpuBufferFormat::kBiPlanar420YpCbCr8FullRange:
-      return kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
-    case GpuBufferFormat::kBiPlanar420YpCbCr10VideoRange:
-      return kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange;
-    case GpuBufferFormat::kBiPlanar420YpCbCr10FullRange:
-      return kCVPixelFormatType_420YpCbCr10BiPlanarFullRange;
-    case GpuBufferFormat::kRGB24:
-      return kCVPixelFormatType_24RGB;
-    case GpuBufferFormat::kRGBAHalf64:
-      return kCVPixelFormatType_64RGBAHalf;
-    case GpuBufferFormat::kRGBAFloat128:
-      return kCVPixelFormatType_128RGBAFloat;
-    case GpuBufferFormat::kImmutableRGBA32:
-    case GpuBufferFormat::kImmutableRGBAFloat128:
-    case GpuBufferFormat::kNV12:
-    case GpuBufferFormat::kNV21:
-    case GpuBufferFormat::kI420:
-    case GpuBufferFormat::kYV12:
-    case GpuBufferFormat::kUnknown:
-      return -1;
-  }
-  return -1;
-}
-
-inline GpuBufferFormat GpuBufferFormatForCVPixelFormat(OSType format) {
-  switch (format) {
-    case kCVPixelFormatType_32BGRA:
-      return GpuBufferFormat::kBGRA32;
-    case kCVPixelFormatType_32RGBA:
-      return GpuBufferFormat::kRGBA32;
-    case kCVPixelFormatType_DepthFloat32:
-      return GpuBufferFormat::kGrayFloat32;
-    case kCVPixelFormatType_OneComponent16Half:
-      return GpuBufferFormat::kGrayHalf16;
-    case kCVPixelFormatType_OneComponent32Float:
-      return GpuBufferFormat::kGrayFloat32;
-    case kCVPixelFormatType_OneComponent8:
-      return GpuBufferFormat::kOneComponent8;
-    case kCVPixelFormatType_TwoComponent8:
-      return GpuBufferFormat::kTwoComponent8;
-    case kCVPixelFormatType_TwoComponent16Half:
-      return GpuBufferFormat::kTwoComponentHalf16;
-    case kCVPixelFormatType_TwoComponent32Float:
-      return GpuBufferFormat::kTwoComponentFloat32;
-    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-      return GpuBufferFormat::kBiPlanar420YpCbCr8VideoRange;
-    case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
-      return GpuBufferFormat::kBiPlanar420YpCbCr8FullRange;
-    case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:
-      return GpuBufferFormat::kBiPlanar420YpCbCr10VideoRange;
-    case kCVPixelFormatType_420YpCbCr10BiPlanarFullRange:
-      return GpuBufferFormat::kBiPlanar420YpCbCr10FullRange;
-    case kCVPixelFormatType_24RGB:
-      return GpuBufferFormat::kRGB24;
-    case kCVPixelFormatType_64RGBAHalf:
-      return GpuBufferFormat::kRGBAHalf64;
-    case kCVPixelFormatType_128RGBAFloat:
-      return GpuBufferFormat::kRGBAFloat128;
-  }
-  return GpuBufferFormat::kUnknown;
-}
-
-#endif  // __APPLE__
 
 namespace internal {
 

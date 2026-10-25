@@ -48,19 +48,6 @@
 #include "tflite/delegates/gpu/gl_delegate.h"
 #endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
-#if MEDIAPIPE_TFLITE_METAL_INFERENCE
-#import <CoreVideo/CoreVideo.h>
-#import <Metal/Metal.h>
-#import <MetalKit/MetalKit.h>
-
-#import "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#include "cv-cuda-pipeline/gpu/MPPMetalUtil.h"
-#include "cv-cuda-pipeline/gpu/gpu_buffer.h"
-#include "tflite/delegates/gpu/common/shape.h"
-#include "tflite/delegates/gpu/metal/buffer_convert.h"
-#include "tflite/delegates/gpu/metal_delegate.h"
-#include "tflite/delegates/gpu/metal_delegate_internal.h"
-#endif  // MEDIAPIPE_TFLITE_METAL_INFERENCE
 
 #if !defined(MEDIAPIPE_EDGE_TPU)
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h"
@@ -178,11 +165,11 @@ int GetXnnpackNumThreads(
 //
 // Input:
 //  TENSORS - Vector of TfLiteTensor of type kTfLiteFloat32 or kTfLiteUInt8
-//  TENSORS_GPU - Vector of GlBuffer or MTLBuffer
+//  TENSORS_GPU - Vector of GlBuffer
 //
 // Output:
 //  TENSORS - Vector of TfLiteTensor of type kTfLiteFloat32 or kTfLiteUInt8
-//  TENSORS_GPU - Vector of GlBuffer or MTLBuffer
+//  TENSORS_GPU - Vector of GlBuffer
 //
 // Input side packet:
 //  CUSTOM_OP_RESOLVER (optional) - Use a custom op resolver,
@@ -274,12 +261,6 @@ class TfLiteInferenceCalculator : public CalculatorBase {
   std::vector<std::unique_ptr<GPUData>> gpu_data_in_;
   std::vector<std::unique_ptr<GPUData>> gpu_data_out_;
   std::unique_ptr<tflite::gpu::TFLiteGPURunner> tflite_gpu_runner_;
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-  MPPMetalHelper* gpu_helper_ = nullptr;
-  std::vector<std::unique_ptr<GPUData>> gpu_data_in_;
-  std::vector<std::unique_ptr<GPUData>> gpu_data_out_;
-  id<MTLComputePipelineState> fp32_to_fp16_program_;
-  TFLBufferConvert* converter_from_BPHWC4_ = nil;
 #endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
 #if defined(MEDIAPIPE_EDGE_TPU)
@@ -357,8 +338,6 @@ absl::Status TfLiteInferenceCalculator::GetContract(CalculatorContract* cc) {
   if (ShouldUseGpu(cc)) {
 #if MEDIAPIPE_TFLITE_GL_INFERENCE
     ABSL_RETURN_IF_ERROR(mediapipe::GlCalculatorHelper::UpdateContract(cc));
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-    ABSL_RETURN_IF_ERROR([MPPMetalHelper updateContract:cc]);
 #endif
   }
 
@@ -403,10 +382,6 @@ absl::Status TfLiteInferenceCalculator::Open(CalculatorContext* cc) {
                                                      &cc]() -> absl::Status {
       return use_advanced_gpu_api_ ? InitTFLiteGPURunner(cc) : LoadDelegate(cc);
     }));
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-    gpu_helper_ = [[MPPMetalHelper alloc] initWithCalculatorContext:cc];
-    RET_CHECK(gpu_helper_);
-    ABSL_RETURN_IF_ERROR(LoadDelegate(cc));
 #endif
   } else {
     ABSL_RETURN_IF_ERROR(LoadDelegate(cc));
@@ -431,19 +406,6 @@ absl::Status TfLiteInferenceCalculator::Process(CalculatorContext* cc) {
 #if MEDIAPIPE_TFLITE_GL_INFERENCE
     if (gpu_inference_ && use_advanced_gpu_api_) {
       RET_CHECK(tflite_gpu_runner_->Invoke().ok());
-    } else {
-      RET_CHECK_EQ(interpreter_->Invoke(), kTfLiteOk);
-    }
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-    // Metal delegate supports external command buffer only if all input and
-    // output buffers are on GPU.
-    if (gpu_inference_ && gpu_input_ && gpu_output_) {
-      id<MTLCommandBuffer> command_buffer = [gpu_helper_ commandBuffer];
-      command_buffer.label = @"TfLiteInferenceCalculator";
-      RET_CHECK(
-          TFLGpuDelegateSetCommandBuffer(delegate_.get(), command_buffer));
-      RET_CHECK_EQ(interpreter_->Invoke(), kTfLiteOk);
-      [command_buffer commit];
     } else {
       RET_CHECK_EQ(interpreter_->Invoke(), kTfLiteOk);
     }
@@ -568,29 +530,6 @@ absl::Status TfLiteInferenceCalculator::ProcessInputsGpu(
       ABSL_RETURN_IF_ERROR(
           CopyBuffer(input_tensors[i], gpu_data_in_[i]->buffer));
     }
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-    const auto& input_tensors =
-        cc->Inputs().Tag(kTensorsGpuTag).Get<std::vector<GpuTensor>>();
-    RET_CHECK_GT(input_tensors.size(), 0);
-    // Explicit copy input with conversion float 32 bits to 16 bits.
-    gpu_data_in_.resize(input_tensors.size());
-    id<MTLCommandBuffer> command_buffer = [gpu_helper_ commandBuffer];
-    command_buffer.label = @"TfLiteInferenceCalculatorConvert";
-    id<MTLComputeCommandEncoder> compute_encoder =
-        [command_buffer computeCommandEncoder];
-    [compute_encoder setComputePipelineState:fp32_to_fp16_program_];
-    for (int i = 0; i < input_tensors.size(); ++i) {
-      [compute_encoder setBuffer:input_tensors[i] offset:0 atIndex:0];
-      [compute_encoder setBuffer:gpu_data_in_[i]->buffer offset:0 atIndex:1];
-      constexpr int kWorkgroupSize = 64;  // Block size for GPU shader.
-      MTLSize threads_per_group = MTLSizeMake(kWorkgroupSize, 1, 1);
-      const int threadgroups =
-          NumGroups(gpu_data_in_[i]->elements, kWorkgroupSize);
-      [compute_encoder dispatchThreadgroups:MTLSizeMake(threadgroups, 1, 1)
-                      threadsPerThreadgroup:threads_per_group];
-    }
-    [compute_encoder endEncoding];
-    [command_buffer commit];
 #endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
   }
 
@@ -651,30 +590,6 @@ absl::Status TfLiteInferenceCalculator::ProcessOutputsGpu(
           gpu_data_out_[i]->elements, &tensor));
       ABSL_RETURN_IF_ERROR(CopyBuffer(gpu_data_out_[i]->buffer, tensor));
     }
-    cc->Outputs()
-        .Tag(kTensorsGpuTag)
-        .Add(output_tensors_gpu.release(), cc->InputTimestamp());
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-    // Output result tensors (GPU).
-    output_tensors_gpu->resize(gpu_data_out_.size());
-    id<MTLDevice> device = gpu_helper_.mtlDevice;
-    id<MTLCommandBuffer> command_buffer = [gpu_helper_ commandBuffer];
-    command_buffer.label = @"TfLiteInferenceBPHWC4Convert";
-    id<MTLComputeCommandEncoder> convert_command =
-        [command_buffer computeCommandEncoder];
-    for (int i = 0; i < gpu_data_out_.size(); ++i) {
-      // Allocate output tensor.
-      output_tensors_gpu->at(i) =
-          [device newBufferWithLength:gpu_data_out_[i]->elements * sizeof(float)
-                              options:MTLResourceStorageModeShared];
-      // Reshape tensor.
-      [converter_from_BPHWC4_ convertWithEncoder:convert_command
-                                           shape:gpu_data_out_[i]->shape
-                                    sourceBuffer:gpu_data_out_[i]->buffer
-                                 convertedBuffer:output_tensors_gpu->at(i)];
-    }
-    [convert_command endEncoding];
-    [command_buffer commit];
     cc->Outputs()
         .Tag(kTensorsGpuTag)
         .Add(output_tensors_gpu.release(), cc->InputTimestamp());
@@ -963,136 +878,6 @@ absl::Status TfLiteInferenceCalculator::LoadDelegate(CalculatorContext* cc) {
                kTfLiteOk);
 #endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
-#if MEDIAPIPE_TFLITE_METAL_INFERENCE
-  const int kHalfSize = 2;  // sizeof(half)
-  // Configure and create the delegate.
-  TFLGpuDelegateOptions options;
-  // `enable_quantization` enables the run of sparse models i.e. the models with
-  // DENSIFY op preceding DEQUINTIZE op. Both ops get removed from the execution
-  // graph after the tensor of the weights is read.
-  options.enable_quantization = true;
-  options.allow_precision_loss = allow_precision_loss_;
-  options.wait_type = TFLGpuDelegateWaitType::TFLGpuDelegateWaitTypeActive;
-  if (!delegate_)
-    delegate_ = TfLiteDelegatePtr(TFLGpuDelegateCreate(&options),
-                                  &TFLGpuDelegateDelete);
-  id<MTLDevice> device = gpu_helper_.mtlDevice;
-
-  if (gpu_input_) {
-    // Get input image sizes.
-    const auto& input_indices = interpreter_->inputs();
-    gpu_data_in_.resize(input_indices.size());
-    for (int i = 0; i < input_indices.size(); ++i) {
-      const TfLiteTensor* tensor = interpreter_->tensor(input_indices[i]);
-      gpu_data_in_[i] = absl::make_unique<GPUData>();
-      gpu_data_in_[i]->shape.b = tensor->dims->data[0];
-      gpu_data_in_[i]->shape.h = tensor->dims->data[1];
-      gpu_data_in_[i]->shape.w = tensor->dims->data[2];
-      // GPU input must have 4 channels, regardless of what the model expects.
-      gpu_data_in_[i]->shape.c = 4;
-      gpu_data_in_[i]->elements =
-          gpu_data_in_[i]->shape.b * gpu_data_in_[i]->shape.h *
-          gpu_data_in_[i]->shape.w * gpu_data_in_[i]->shape.c;
-      // Input to model can be RGBA only.
-      if (tensor->dims->data[3] != 4) {
-        ABSL_LOG(WARNING) << "Please ensure input GPU tensor is 4 channels.";
-      }
-      const std::string shader_source =
-          absl::Substitute(R"(#include <metal_stdlib>
-        using namespace metal;
-        kernel void convertKernel(device float4* const input_buffer [[buffer(0)]],
-                                  device half4* output_buffer [[buffer(1)]],
-                                  uint gid [[thread_position_in_grid]]) {
-          if (gid >= $0) return;
-          output_buffer[gid] = half4(input_buffer[gid]);
-        })",
-                           gpu_data_in_[i]->elements / 4);
-      NSString* library_source =
-          [NSString stringWithUTF8String:shader_source.c_str()];
-      NSError* error = nil;
-      id<MTLLibrary> library =
-          [device newLibraryWithSource:library_source options:nil error:&error];
-      RET_CHECK(library != nil) << "Couldn't create shader library "
-                                << [[error localizedDescription] UTF8String];
-      id<MTLFunction> kernel_func = nil;
-      kernel_func = [library newFunctionWithName:@"convertKernel"];
-      RET_CHECK(kernel_func != nil) << "Couldn't create kernel function.";
-      fp32_to_fp16_program_ =
-          [device newComputePipelineStateWithFunction:kernel_func error:&error];
-      RET_CHECK(fp32_to_fp16_program_ != nil)
-          << "Couldn't create pipeline state "
-          << [[error localizedDescription] UTF8String];
-
-      // Create and bind input buffer.
-      gpu_data_in_[i]->buffer =
-          [device newBufferWithLength:gpu_data_in_[i]->elements * kHalfSize
-                              options:MTLResourceStorageModeShared];
-      RET_CHECK_EQ(interpreter_->ModifyGraphWithDelegate(delegate_.get()),
-                   kTfLiteOk);
-      RET_CHECK_EQ(
-          TFLGpuDelegateBindMetalBufferToTensor(
-              delegate_.get(), input_indices[i], gpu_data_in_[i]->buffer),
-          true);
-    }
-  }
-  if (gpu_output_) {
-    // Get output image sizes.
-    const auto& output_indices = interpreter_->outputs();
-    gpu_data_out_.resize(output_indices.size());
-    for (int i = 0; i < gpu_data_out_.size(); ++i) {
-      const TfLiteTensor* tensor = interpreter_->tensor(output_indices[i]);
-      gpu_data_out_[i] = absl::make_unique<GPUData>();
-      gpu_data_out_[i]->elements = 1;
-      // TODO handle *2 properly on some dialated models
-      for (int d = 0; d < tensor->dims->size; ++d) {
-        // Pad each dim for BHWC4 conversion inside delegate.
-        gpu_data_out_[i]->elements *= RoundUp(tensor->dims->data[d], 4);
-      }
-      // Save dimensions for reshaping back later.
-      gpu_data_out_[i]->shape.b = tensor->dims->data[0];
-      switch (tensor->dims->size) {
-        case 2:
-          gpu_data_out_[i]->shape.h = 1;
-          gpu_data_out_[i]->shape.w = 1;
-          gpu_data_out_[i]->shape.c = tensor->dims->data[1];
-          break;
-        case 3:
-          gpu_data_out_[i]->shape.h = 1;
-          gpu_data_out_[i]->shape.w = tensor->dims->data[1];
-          gpu_data_out_[i]->shape.c = tensor->dims->data[2];
-          break;
-        case 4:
-          gpu_data_out_[i]->shape.h = tensor->dims->data[1];
-          gpu_data_out_[i]->shape.w = tensor->dims->data[2];
-          gpu_data_out_[i]->shape.c = tensor->dims->data[3];
-          break;
-        default:
-          return absl::InternalError("Unsupported tensor shape.");
-      }
-    }
-    // Create and bind output buffers.
-    interpreter_->SetAllowBufferHandleOutput(true);
-    for (int i = 0; i < gpu_data_out_.size(); ++i) {
-      gpu_data_out_[i]->buffer =
-          [device newBufferWithLength:gpu_data_out_[i]->elements * kHalfSize
-                              options:MTLResourceStorageModeShared];
-      RET_CHECK_EQ(
-          TFLGpuDelegateBindMetalBufferToTensor(
-              delegate_.get(), output_indices[i], gpu_data_out_[i]->buffer),
-          true);
-    }
-
-    // Create converter for GPU output.
-    converter_from_BPHWC4_ =
-        [[TFLBufferConvert alloc] initWithDevice:device
-                                       isFloat16:allow_precision_loss_
-                                 convertToPBHWC4:false];
-    if (converter_from_BPHWC4_ == nil) {
-      return absl::InternalError(
-          "Error initializating output buffer converter");
-    }
-  }
-#endif  // MEDIAPIPE_TFLITE_METAL_INFERENCE
 
   return absl::OkStatus();
 }

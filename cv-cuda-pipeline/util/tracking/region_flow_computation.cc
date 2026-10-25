@@ -2070,7 +2070,7 @@ bool RegionFlowComputation::GainCorrectFrame(const cv::Mat& reference_frame,
 void RegionFlowComputation::WideBaselineMatchFeatures(
     FrameTrackingData* from_data_ptr, FrameTrackingData* to_data_ptr,
     TrackedFeatureList* results) {
-#if ((defined(__APPLE__)) || (defined(__EMSCRIPTEN__))) && (!(defined(CV_WRAPPER_3X)))
+#if defined(__EMSCRIPTEN__) && !defined(CV_WRAPPER_3X)
   ABSL_LOG(FATAL) << "Supported on only with OpenCV 3.0. "
                   << "Use bazel build flag : --define CV_WRAPPER=3X";
 #else

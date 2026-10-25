@@ -41,14 +41,6 @@
 
 #if !MEDIAPIPE_DISABLE_GPU
 #include "cv-cuda-pipeline/gpu/gpu_buffer.h"
-#if MEDIAPIPE_METAL_ENABLED
-#import <CoreVideo/CoreVideo.h>
-#import <Metal/Metal.h>
-#import <MetalKit/MetalKit.h>
-
-#include "cv-cuda-pipeline/framework/formats/tensor_mtl_buffer_view.h"
-#import "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#else
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #include "cv-cuda-pipeline/gpu/gl_quad_renderer.h"
 #include "cv-cuda-pipeline/gpu/gl_simple_shaders.h"
@@ -60,7 +52,6 @@
 #include "tflite/delegates/gpu/gl/gl_texture.h"
 #include "tflite/delegates/gpu/gl_delegate.h"
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
-#endif  // MEDIAPIPE_METAL_ENABLED
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
 namespace mediapipe {
@@ -84,12 +75,12 @@ static int NumGroups(const int size, const int group_size) {  // NOLINT
 }
 
 bool CanUseGpu() {
-#if !MEDIAPIPE_DISABLE_GPU || MEDIAPIPE_METAL_ENABLED
+#if !MEDIAPIPE_DISABLE_GPU
   constexpr bool kAllowGpuProcessing = true;
   return kAllowGpuProcessing;
 #else
   return false;
-#endif  // !MEDIAPIPE_DISABLE_GPU || MEDIAPIPE_METAL_ENABLED
+#endif
 }
 
 }  // namespace
@@ -131,14 +122,6 @@ class TensorsToImageCalculator : public Node {
   int tensor_position_;
 
 #if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_METAL_ENABLED
-  bool metal_initialized_ = false;
-  MPPMetalHelper* gpu_helper_ = nullptr;
-  id<MTLComputePipelineState> to_buffer_program_;
-
-  absl::Status MetalSetup(CalculatorContext* cc);
-  absl::Status MetalProcess(CalculatorContext* cc);
-#else
   absl::Status GlSetup(CalculatorContext* cc);
   absl::Status GlProcess(CalculatorContext* cc);
   GlCalculatorHelper gl_helper_;
@@ -151,7 +134,6 @@ class TensorsToImageCalculator : public Node {
   GLuint program_ = 0;
   std::unique_ptr<mediapipe::QuadRenderer> gl_renderer_;
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
-#endif  // MEDIAPIPE_METAL_ENABLED
 #endif  // !MEDIAPIPE_DISABLE_GPU
 };
 MEDIAPIPE_REGISTER_NODE(::mediapipe::tasks::TensorsToImageCalculator);
@@ -160,13 +142,8 @@ absl::Status TensorsToImageCalculator::UpdateContract(CalculatorContract* cc) {
   RET_CHECK(kInputTensors(cc).IsConnected() ^ kInputTensor(cc).IsConnected())
       << "Either TENSORS or TENSOR must be specified";
 #if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_METAL_ENABLED
-  ABSL_RETURN_IF_ERROR(
-      [MPPMetalHelper updateContract:cc requestGpuAsOptional:true]);
-#else
   return GlCalculatorHelper::UpdateContract(cc,
                                             /*request_gpu_as_optional=*/true);
-#endif  // MEDIAPIPE_METAL_ENABLED
 #endif  // !MEDIAPIPE_DISABLE_GPU
   return absl::OkStatus();
 }
@@ -189,20 +166,16 @@ absl::Status TensorsToImageCalculator::Open(CalculatorContext* cc) {
 absl::Status TensorsToImageCalculator::Process(CalculatorContext* cc) {
   if (CanUseGpu()) {
 #if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_METAL_ENABLED
-    return MetalProcess(cc);
-#else
     if (cc->Service(kGpuService).IsAvailable()) {
       return GlProcess(cc);
     }
-#endif  // MEDIAPIPE_METAL_ENABLED
 #endif  // !MEDIAPIPE_DISABLE_GPU
   }
   return CpuProcess(cc);
 }
 
 absl::Status TensorsToImageCalculator::Close(CalculatorContext* cc) {
-#if !MEDIAPIPE_DISABLE_GPU && !MEDIAPIPE_METAL_ENABLED
+#if !MEDIAPIPE_DISABLE_GPU
   if (gl_initialized_) {
     gl_helper_.RunInGlContext([this] {
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
@@ -213,7 +186,7 @@ absl::Status TensorsToImageCalculator::Close(CalculatorContext* cc) {
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
     });
   }
-#endif  // !MEDIAPIPE_DISABLE_GPU && !MEDIAPIPE_METAL_ENABLED
+#endif
   return absl::OkStatus();
 }
 
@@ -294,105 +267,16 @@ absl::Status TensorsToImageCalculator::CpuProcess(CalculatorContext* cc) {
   return absl::OkStatus();
 }
 
-#if MEDIAPIPE_METAL_ENABLED
 
-absl::Status TensorsToImageCalculator::MetalProcess(CalculatorContext* cc) {
-  if (!metal_initialized_) {
-    ABSL_RETURN_IF_ERROR(MetalSetup(cc));
-    metal_initialized_ = true;
-  }
-
-  if (IsInputTensorEmpty(cc)) return absl::OkStatus();
-  ABSL_ASSIGN_OR_RETURN(const Tensor& input_tensor, GetInputTensor(cc));
-
-  const int tensor_width = input_tensor.shape().dims[2];
-  const int tensor_height = input_tensor.shape().dims[1];
-  const int tensor_channels = input_tensor.shape().dims[3];
-  // TODO: Add 1 channel support.
-  RET_CHECK(tensor_channels == 3);
-
-  // TODO: Fix unused variable
-  [[maybe_unused]] id<MTLDevice> device = gpu_helper_.mtlDevice;
-  id<MTLCommandBuffer> command_buffer = [gpu_helper_ commandBuffer];
-  command_buffer.label = @"TensorsToImageCalculatorConvert";
-  id<MTLComputeCommandEncoder> compute_encoder =
-      [command_buffer computeCommandEncoder];
-  [compute_encoder setComputePipelineState:to_buffer_program_];
-
-  auto input_view =
-      mediapipe::MtlBufferView::GetReadView(input_tensor, command_buffer);
-  [compute_encoder setBuffer:input_view.buffer() offset:0 atIndex:0];
-
-  mediapipe::GpuBuffer output =
-      [gpu_helper_ mediapipeGpuBufferWithWidth:tensor_width
-                                        height:tensor_height];
-  id<MTLTexture> dst_texture = [gpu_helper_ metalTextureWithGpuBuffer:output];
-  [compute_encoder setTexture:dst_texture atIndex:1];
-
-  MTLSize threads_per_group = MTLSizeMake(8, 8, 1);
-  MTLSize threadgroups =
-      MTLSizeMake(NumGroups(tensor_width, 8), NumGroups(tensor_height, 8), 1);
-  [compute_encoder dispatchThreadgroups:threadgroups
-                  threadsPerThreadgroup:threads_per_group];
-  [compute_encoder endEncoding];
-  [command_buffer commit];
-  [command_buffer waitUntilCompleted];
-  kOutputImage(cc).Send(Image(output));
-  return absl::OkStatus();
-}
-
-absl::Status TensorsToImageCalculator::MetalSetup(CalculatorContext* cc) {
-  gpu_helper_ = [[MPPMetalHelper alloc] initWithCalculatorContext:cc];
-  RET_CHECK(gpu_helper_);
-
-  id<MTLDevice> device = gpu_helper_.mtlDevice;
-  const std::string shader_source =
-      R"(
-  #include <metal_stdlib>
-
-  using namespace metal;
-
-  kernel void convertKernel(
-      device float*                         in_buf   [[ buffer(0) ]],
-      texture2d<float, access::read_write>  out_tex  [[ texture(1) ]],
-      uint2                                 gid      [[ thread_position_in_grid ]]) {
-        if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height()) return;
-        uint linear_index = 3 * (gid.y * out_tex.get_width() + gid.x);
-        float4 out_value = float4(in_buf[linear_index], in_buf[linear_index + 1], in_buf[linear_index + 2], 1.0);
-        out_tex.write(out_value, gid);
-      }
-  )";
-  NSString* library_source =
-      [NSString stringWithUTF8String:shader_source.c_str()];
-  NSError* error = nil;
-  id<MTLLibrary> library =
-      [device newLibraryWithSource:library_source options:nullptr error:&error];
-  RET_CHECK(library != nil) << "Couldn't create shader library "
-                            << [[error localizedDescription] UTF8String];
-  id<MTLFunction> kernel_func = nil;
-  kernel_func = [library newFunctionWithName:@"convertKernel"];
-  RET_CHECK(kernel_func != nil) << "Couldn't create kernel function.";
-  to_buffer_program_ =
-      [device newComputePipelineStateWithFunction:kernel_func error:&error];
-  RET_CHECK(to_buffer_program_ != nil) << "Couldn't create pipeline state " <<
-      [[error localizedDescription] UTF8String];
-
-  return mediapipe::OkStatus();
-}
-
-#endif  // MEDIAPIPE_METAL_ENABLED
-
-#if !MEDIAPIPE_DISABLE_GPU && !MEDIAPIPE_METAL_ENABLED
+#if !MEDIAPIPE_DISABLE_GPU
 absl::Status TensorsToImageCalculator::GlSetup(CalculatorContext* cc) {
   std::string maybe_flip_y_define;
-#if !defined(__APPLE__)
   const auto& options = cc->Options<TensorsToImageCalculatorOptions>();
   if (options.gpu_origin() != mediapipe::GpuOrigin::TOP_LEFT) {
     maybe_flip_y_define = R"(
       #define FLIP_Y_COORD
     )";
   }
-#endif  // !defined(__APPLE__)
 
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 
@@ -566,7 +450,7 @@ absl::Status TensorsToImageCalculator::GlProcess(CalculatorContext* cc) {
   });
 }
 
-#endif  // !MEDIAPIPE_DISABLE_GPU && !MEDIAPIPE_METAL_ENABLED
+#endif
 
 }  // namespace tasks
 }  // namespace mediapipe

@@ -77,8 +77,6 @@ static void AdaptGlTextureInfoForGLES2(GlTextureInfo* info) {
 const GlTextureInfo& GlTextureInfoForGpuBufferFormat(GpuBufferFormat format,
                                                      int plane,
                                                      GlVersion gl_version) {
-  // TODO: check/add more cases using info from
-  // CVPixelFormatDescriptionCreateWithPixelFormatType.
   static const mediapipe::NoDestructor<
       absl::flat_hash_map<GpuBufferFormat, std::vector<GlTextureInfo>>>
       gles3_format_info{{
@@ -89,14 +87,7 @@ const GlTextureInfo& GlTextureInfoForGpuBufferFormat(GpuBufferFormat format,
           {GpuBufferFormat::kBGRA32,
            {
   // internal_format, format, type, downscale
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-               // On Apple platforms, this code path uses CVPixelBuffer.
-               // When using CVPixelBuffer, the preferred transfer format is
-               // BGRA.
-               {GL_RGBA, GL_BGRA, GL_UNSIGNED_BYTE, 1},
-#else
                {GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 1},
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
            }},
           {GpuBufferFormat::kOneComponent8,
            {
@@ -104,11 +95,7 @@ const GlTextureInfo& GlTextureInfoForGpuBufferFormat(GpuBufferFormat format,
   // the single channel texel values to RGB channels, and set alpha
   // to 1.0. If it is desired to see only the texel values in the R
   // channel, use kOneComponent8Red instead.
-#if !TARGET_OS_OSX
                {GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE, 1},
-#else
-               {GL_R8, GL_RED, GL_UNSIGNED_BYTE, 1},
-#endif  // TARGET_OS_OSX
            }},
           {GpuBufferFormat::kOneComponent8Alpha,
            {
@@ -122,26 +109,6 @@ const GlTextureInfo& GlTextureInfoForGpuBufferFormat(GpuBufferFormat format,
            {
                {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, 1},
            }},
-#ifdef __APPLE__
-          {GpuBufferFormat::kBiPlanar420YpCbCr8VideoRange,
-           {
-               // Apple's documentation suggests GL_LUMINANCE and
-               // GL_LUMINANCE_ALPHA,
-               // but since they are deprecated in later versions of OpenGL, we
-               // use
-               // GL_RED and GL_RG. On GLES2 we can use GL_RED_EXT and GL_RG_EXT
-               // instead, though we are not sure if it may cause compatibility
-               // problems
-               // with very old devices.
-               {GL_R8, GL_RED, GL_UNSIGNED_BYTE, 1},
-               {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, 2},
-           }},
-          {GpuBufferFormat::kBiPlanar420YpCbCr8FullRange,
-           {
-               {GL_R8, GL_RED, GL_UNSIGNED_BYTE, 1},
-               {GL_RG8, GL_RG, GL_UNSIGNED_BYTE, 2},
-           }},
-#endif  // __APPLE__
           {GpuBufferFormat::kTwoComponentHalf16,
            {
                // TODO: use GL_HALF_FLOAT_OES on GLES2?
@@ -210,10 +177,8 @@ const GlTextureInfo& GlTextureInfoForGpuBufferFormat(GpuBufferFormat format,
       << "unsupported format: "
       << static_cast<std::underlying_type_t<decltype(format)>>(format);
   const auto& planes = iter->second;
-#ifndef __APPLE__
   ABSL_CHECK_EQ(planes.size(), 1)
       << "multiplanar formats are not supported on this platform";
-#endif
   ABSL_CHECK_GE(plane, 0) << "invalid plane number";
   ABSL_CHECK_LT(plane, planes.size()) << "invalid plane number";
   return planes[plane];
@@ -251,10 +216,8 @@ GpuBufferFormat GpuBufferFormatForGlFormat(const GLenum format) {  // NOLINT
       return GpuBufferFormat::kRGBAFloat128;
     case GL_ALPHA:
       return GpuBufferFormat::kOneComponent8Alpha;
-#if !TARGET_OS_OSX
     case GL_LUMINANCE:
       return GpuBufferFormat::kOneComponent8;
-#endif
     default:
       return GpuBufferFormat::kUnknown;
   }

@@ -16,13 +16,6 @@
 #define MEDIAPIPE_GPU_GL_CONTEXT_INTERNAL_H_
 
 #include "absl/synchronization/mutex.h"
-#ifdef __APPLE__
-#if TARGET_OS_OSX
-#import <AppKit/NSOpenGL.h>
-#else
-#import <OpenGLES/EAGL.h>
-#endif  // TARGET_OS_OSX
-#endif  // __APPLE__
 
 #include "cv-cuda-pipeline/gpu/gl_context.h"
 

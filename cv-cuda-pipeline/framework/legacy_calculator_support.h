@@ -53,15 +53,7 @@ class LegacyCalculatorSupport {
     // The value to restore after exiting this scope.
     C* saved_;
 
-    // This needs NOLINT because, when included in Objective-C++ files,
-    // clang-tidy suggests using an Objective-C naming convention, which is
-    // inappropriate. (b/116015736) No category specifier because of b/71698089.
-    //
-    // ABSL_CONST_INIT triggers b/155992786 with some versions of Clang on Apple
-    // platforms.
-#ifndef __APPLE__
     ABSL_CONST_INIT
-#endif                                // !__APPLE__
     static thread_local C* current_;  // NOLINT
   };
 };

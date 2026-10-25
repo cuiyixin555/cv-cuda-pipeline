@@ -44,11 +44,7 @@ using mediapipe::GlTexture;
 using mediapipe::GpuBuffer;
 using mediapipe::GpuOrigin;
 
-#ifdef __APPLE__
-#define GL_CLAMP_TO_BORDER_MAY_BE_SUPPORTED 0
-#else
 #define GL_CLAMP_TO_BORDER_MAY_BE_SUPPORTED 1
-#endif  //  __APPLE__
 
 bool IsGlClampToBorderSupported(const mediapipe::GlContext& gl_context) {
   return gl_context.gl_major_version() > 3 ||

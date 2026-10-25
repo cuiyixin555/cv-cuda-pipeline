@@ -20,9 +20,7 @@
 #include "cv-cuda-pipeline/gpu/gpu_buffer.h"
 #include "cv-cuda-pipeline/gpu/gpu_buffer_format.h"
 
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
-#endif
 
 namespace mediapipe::api3 {
 
@@ -36,9 +34,7 @@ struct ImageFrameToGpuBufferNode : Node<"ImageFrameToGpuBufferCalculator"> {
   template <typename S>
   struct Contract {
     Input<S, ImageFrame> image_frame{""};
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
     Optional<SideInput<S, GpuSharedData*>> gpu_shared{"GPU_SHARED"};
-#endif
     Output<S, GpuBuffer> gpu_buffer{""};
   };
 };

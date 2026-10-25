@@ -68,9 +68,6 @@ class InferenceCalculatorSelectorImpl
     if (should_use_gpu) {
       const auto& api = options.delegate().gpu().api();
       using Gpu = ::mediapipe::InferenceCalculatorOptions::Delegate::Gpu;
-#if MEDIAPIPE_METAL_ENABLED
-      impls.emplace_back("Metal");
-#endif
       const bool prefer_gl_advanced =
           options.delegate().gpu().use_advanced_gpu_api() &&
           (api == Gpu::ANY || api == Gpu::OPENGL || api == Gpu::OPENCL);

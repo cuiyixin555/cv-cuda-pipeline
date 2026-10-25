@@ -15,10 +15,8 @@
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@bazel_skylib//lib:selects.bzl", "selects")  # buildifier: disable=out-of-order-load
-load("@build_bazel_rules_apple//apple:resources.bzl", metal_library = "apple_metal_library")
 load("//cv-cuda-pipeline/framework/port:build_config.bzl", "mediapipe_proto_library")  # buildifier: disable=out-of-order-load
 load("//cv-cuda-pipeline/framework:mediapipe_cc_test.bzl", "mediapipe_cc_test")  # buildifier: disable=out-of-order-load
-load("//cv-cuda-pipeline/framework:more_selects.bzl", "more_selects")
 
 licenses(["notice"])
 
@@ -82,10 +80,6 @@ cc_library(
 
 GL_BASE_LINK_OPTS = select({
     "//conditions:default": [],
-    "//cv-cuda-pipeline:macos": [
-        "-framework OpenGL",
-        "-framework CoreVideo",
-    ],
     "//cv-cuda-pipeline:emscripten": [
         # Needed for symbols such as glFenceSync.
         "-s MAX_WEBGL_VERSION=2",
@@ -100,24 +94,17 @@ GL_BASE_LINK_OPTS_OSS = GL_BASE_LINK_OPTS + select({
         # and libraries to be installed.
         # Ex: libegl1-mesa-dev libgles2-mesa-dev, or libegl1-nvidia libgles2-nvidia, etc...
     ],
-    ":platform_apple_with_gpu": [],
     ":disable_gpu": [],
 })
 
 cc_library(
     name = "gl_base",
-    defines = select({
-        "//cv-cuda-pipeline:apple": [
-            "GLES_SILENCE_DEPRECATION=1",
-        ],
-        "//conditions:default": [],
-    }),
+    defines = [],
     features = ["-layering_check"],
     linkopts = GL_BASE_LINK_OPTS_OSS,
     textual_hdrs = ["gl_base.h"],
     visibility = ["//visibility:public"],
     deps = [":gl_base_hdr"] + select({
-        "//cv-cuda-pipeline:apple": [],
         "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
         ],
@@ -135,17 +122,9 @@ cc_library(
     name = "gl_base_hdr",
     hdrs = ["gl_base.h"],
     features = ["-layering_check"],
-    # Note: need the frameworks on Apple platforms to get the headers.
-    linkopts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:macos": [
-            "-framework OpenGL",
-            "-framework CoreVideo",
-        ],
-    }),
+    linkopts = [],
     visibility = ["//visibility:public"],
     deps = select({
-        "//cv-cuda-pipeline:apple": [],
         "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
             "@linux_opencv//:egl_gles_headers",
@@ -179,25 +158,10 @@ cc_library(
         "//cv-cuda-pipeline:emscripten": [
             "gl_context_webgl.cc",
         ],
-        "//cv-cuda-pipeline:macos": [
-            "gl_context_nsgl.cc",
-        ],
     }),
     hdrs = ["gl_context.h"],
-    copts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-    }),
-    linkopts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:macos": [
-            "-framework OpenGL",
-            "-framework AppKit",
-        ],
-    }),
+    copts = [],
+    linkopts = [],
     target_compatible_with = select({
         # This cc_library uses pthread and is not compatible with Windows. Marking it as
         # incompatible instead of the confusing message "pthread.h" file not found.
@@ -236,16 +200,10 @@ cc_library(
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
-    ] + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-        ],
-    }) + select({
+    ] + [] + select({
         "//conditions:default": [
         ],
         "//cv-cuda-pipeline:emscripten": [
-        ],
-        "//cv-cuda-pipeline:macos": [
         ],
     }),
 )
@@ -272,13 +230,7 @@ cc_library(
         # depend on having an indirect image_frame dependency, need to be
         # fixed first.
         "//cv-cuda-pipeline/framework/formats:image_frame",
-    ] + select({
-        "//conditions:default": [],
-        ":platform_apple_with_gpu": [
-            ":gl_texture_util",
-            ":gpu_buffer_storage_cv_pixel_buffer",
-        ],
-    }),
+    ] + [],
 )
 
 cc_library(
@@ -311,28 +263,8 @@ cc_library(
     ],
 )
 
-# Workaround for "Multiple matches are not allowed unless one is unambiguously more specialized".
-more_selects.config_setting_negation(
-    name = "not_disable_gpu",
-    negate = ":disable_gpu",
-)
 
 
-selects.config_setting_group(
-    name = "platform_macos_with_gpu",
-    match_all = [
-        ":not_disable_gpu",
-        "//cv-cuda-pipeline:macos",
-    ],
-)
-
-selects.config_setting_group(
-    name = "platform_apple_with_gpu",
-    match_all = [
-        ":not_disable_gpu",
-        "//cv-cuda-pipeline:apple",
-    ],
-)
 
 cc_library(
     name = "gpu_buffer",
@@ -354,17 +286,8 @@ cc_library(
             ":gl_texture_buffer",
             ":gl_texture_view",
         ],
-        ":platform_macos_with_gpu": [
-            ":gl_texture_buffer",
-            ":gl_texture_view",
-            ":gpu_buffer_storage_cv_pixel_buffer",
-        ],
         ":disable_gpu": [],
-    }) + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-        ],
-    }),
+    }) + [],
 )
 
 cc_library(
@@ -401,61 +324,9 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "gpu_buffer_storage_cv_pixel_buffer",
-    srcs = ["gpu_buffer_storage_cv_pixel_buffer.cc"],
-    hdrs = ["gpu_buffer_storage_cv_pixel_buffer.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":gl_base",
-        ":gl_context",
-        ":gl_texture_view",
-        ":gpu_buffer_format",
-        ":gpu_buffer_storage",
-        ":gpu_buffer_storage_image_frame",
-        ":image_frame_view",
-        "@com_google_absl//absl/log:absl_check",
-        "@com_google_absl//absl/log:absl_log",
-    ],
-)
 
 
-cc_library(
-    name = "cv_texture_cache_manager",
-    srcs = ["cv_texture_cache_manager.cc"],
-    hdrs = ["cv_texture_cache_manager.h"],
-    deps = [
-        ":pixel_buffer_pool_util",
-        "//cv-cuda-pipeline/framework/port:logging",
-        "@com_google_absl//absl/log:absl_check",
-        "@com_google_absl//absl/synchronization",
-    ],
-)
 
-cc_library(
-    name = "cv_pixel_buffer_pool_wrapper",
-    srcs = ["cv_pixel_buffer_pool_wrapper.cc"],
-    hdrs = ["cv_pixel_buffer_pool_wrapper.h"],
-    copts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",
-        ],
-    }),
-    deps = [
-        ":cv_texture_cache_manager",
-        ":gpu_buffer_format",
-        ":multi_pool",
-        ":pixel_buffer_pool_util",
-        "//cv-cuda-pipeline/framework/port:logging",
-        "//cv-cuda-pipeline/framework/port:ret_check",
-        "@com_google_absl//absl/log:absl_check",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/synchronization",
-    ],
-)
 
 cc_library(
     name = "gpu_buffer_storage_image_frame",
@@ -534,59 +405,8 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "pixel_buffer_pool_util",
-    srcs = ["pixel_buffer_pool_util.cc"],
-    hdrs = ["pixel_buffer_pool_util.h"],
-    copts = [
-        "-x objective-c++",
-        "-fobjc-arc",  # enable reference-counting
-    ],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//third_party/apple_frameworks:Accelerate",
-        "//third_party/apple_frameworks:CoreGraphics",
-        "//third_party/apple_frameworks:CoreVideo",
-    ],
-)
 
-cc_library(
-    name = "metal_shared_resources",
-    srcs = ["metal_shared_resources.cc"],
-    hdrs = ["metal_shared_resources.h"],
-    copts = [
-        "-x objective-c++",
-        "-fobjc-arc",  # enable reference-counting
-    ],
-    features = ["-layering_check"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//cv-cuda-pipeline/framework/port:ret_check",
-        "@google_toolbox_for_mac//:GTM_Defines",
-    ] + [
-        "//third_party/apple_frameworks:CoreVideo",
-        "//third_party/apple_frameworks:Metal",
-    ],
-    alwayslink = 1,
-)
 
-cc_library(
-    name = "MPPMetalUtil",
-    srcs = ["MPPMetalUtil.cc"],
-    hdrs = ["MPPMetalUtil.h"],
-    copts = [
-        "-x objective-c++",
-        "-fobjc-arc",  # enable reference-counting
-    ],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//third_party/apple_frameworks:CoreVideo",
-        "//third_party/apple_frameworks:Metal",
-        "@com_google_absl//absl/time",
-        "@google_toolbox_for_mac//:GTM_Defines",
-    ],
-    alwayslink = 1,
-)
 
 cc_library(
     name = "gl_app_texture_support",
@@ -668,13 +488,7 @@ cc_library(
     hdrs = [
         "gpu_shared_data_internal.h",
     ],
-    copts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-    }),
+    copts = [],
     visibility = ["//visibility:private"],
     deps = [
         ":gl_base",
@@ -702,14 +516,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
-    ] + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            ":cv_texture_cache_manager",
-            ":gpu_buffer_storage_cv_pixel_buffer",
-            ":metal_shared_resources",
-        ],
-    }),
+    ] + [],
 )
 
 cc_library(
@@ -761,19 +568,9 @@ cc_library(
 cc_library(
     name = "gpu_buffer_multi_pool",
     srcs = ["gpu_buffer_multi_pool.cc"],
-    hdrs = ["gpu_buffer_multi_pool.h"] + select({
-        "//conditions:default": [
+    hdrs = ["gpu_buffer_multi_pool.h"] + [
         ],
-        "//cv-cuda-pipeline:macos": [
-        ],
-    }),
-    copts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",
-        ],
-    }),
+    copts = [],
     visibility = ["//visibility:public"],
     deps = [
         ":gl_base",
@@ -789,19 +586,10 @@ cc_library(
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
-    ] + select({
-        "//conditions:default": [
+    ] + [
             ":gl_texture_buffer",
             ":gl_texture_buffer_pool",
         ],
-        "//cv-cuda-pipeline:macos": [
-            ":cv_pixel_buffer_pool_wrapper",
-            ":cv_texture_cache_manager",
-            ":gl_texture_buffer",
-            ":gl_texture_buffer_pool",
-            ":pixel_buffer_pool_util",
-        ],
-    }),
 )
 
 cc_library(
@@ -848,16 +636,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "gl_texture_util",
-    srcs = ["gl_texture_util.cc"],
-    hdrs = ["gl_texture_util.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":gl_base",
-        ":gl_texture_view",
-    ],
-)
 
 cc_library(
     name = "shader_util",
@@ -892,22 +670,7 @@ cc_library(
     hdrs = [
         "gl_calculator_helper.h",
     ],
-    linkopts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "-framework AVFoundation",
-            "-framework CoreVideo",
-            "-framework CoreGraphics",
-            "-framework CoreMedia",
-            "-framework GLKit",
-            "-framework QuartzCore",
-        ],
-    }) + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:macos": [
-            "-framework AppKit",
-        ],
-    }),
+    linkopts = [] + [],
     visibility = ["//visibility:public"],
     deps = [
         ":gl_base",
@@ -944,35 +707,10 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
-    ] + select({
-        "//conditions:default": [
+    ] + [
         ],
-        "//cv-cuda-pipeline:apple": [],
-    }),
 )
 
-cc_library(
-    name = "MPPMetalHelper",
-    srcs = ["MPPMetalHelper.cc"],
-    hdrs = ["MPPMetalHelper.h"],
-    copts = [
-        "-x objective-c++",
-        "-fobjc-arc",
-    ],
-    features = ["-layering_check"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":gpu_service",
-        ":gpu_shared_data_internal",
-        ":graph_support",
-        "//cv-cuda-pipeline/framework/port",
-        "//third_party/apple_frameworks:CoreVideo",
-        "//third_party/apple_frameworks:Metal",
-        "@com_google_absl//absl/log:absl_check",
-        "@com_google_absl//absl/log:absl_log",
-        "@google_toolbox_for_mac//:GTM_Defines",
-    ],
-)
 
 mediapipe_proto_library(
     name = "scale_mode_proto",
@@ -1042,10 +780,7 @@ cc_library(
         "//cv-cuda-pipeline/framework/port:ret_check",
         "//cv-cuda-pipeline/framework/port:status",
         "@com_google_absl//absl/status",
-    ] + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [],
-    }),
+    ] + [],
     alwayslink = 1,
 )
 
@@ -1069,10 +804,7 @@ cc_library(
         "//cv-cuda-pipeline/framework/port:ret_check",
         "//cv-cuda-pipeline/framework/port:status",
         "@com_google_absl//absl/status",
-    ] + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [],
-    }),
+    ] + [],
     alwayslink = 1,
 )
 
@@ -1204,15 +936,6 @@ mediapipe_proto_library(
     ],
 )
 
-### Metal calculators
-
-metal_library(
-    name = "simple_shaders_mtl",
-    srcs = ["simple_shaders.metal"],
-    hdrs = ["metal_shader_base.h"],
-)
-
-# Only needed for cc_library depending on simple_shaders_mtl.
 
 
 mediapipe_proto_library(
@@ -1224,15 +947,3 @@ mediapipe_proto_library(
         "//cv-cuda-pipeline/framework:calculator_proto",
     ],
 )
-
-
-
-
-
-
-
-test_suite(
-    name = "metal",
-    tags = ["metal"],
-)
-

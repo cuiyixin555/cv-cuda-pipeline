@@ -32,11 +32,9 @@
 #include "cv-cuda-pipeline/gpu/gpu_origin.pb.h"
 #include "cv-cuda-pipeline/modules/face_detection/face_detection.pb.h"
 
-#if !(defined(__APPLE__))
 #include "cv-cuda-pipeline/gpu/gl_app_texture_support.h"
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #include "cv-cuda-pipeline/gpu/gpu_test_base.h"
-#endif
 
 namespace mediapipe {
 namespace {
@@ -57,7 +55,7 @@ void RegisterProtobufTypes() {
 // Returns a Packet with an ImageFrame showing a face.
 Packet TestImageFrame() {
   std::unique_ptr<ImageFrame> input_image = LoadTestPng(
-      file::JoinPath(GetTestRootDir(), "cv-cuda-pipeline/objc/testdata/sergey.png"));
+      file::JoinPath(GetTestRootDir(), "cv-cuda-pipeline/framework/debug/testdata/sergey.png"));
   EXPECT_EQ(input_image->Height(), 600);
   return MakePacket<ImageFrame>(std::move(*input_image));
 }
@@ -298,7 +296,6 @@ TEST_F(FaceDetectionTest, FaceDetectionShortRangeByRoiCpu) {
 }
 
 // These GpuBuffer tests are disabled on mobile for now.
-#if !(defined(__APPLE__))
 
 class FaceDetectionGpuTest : public mediapipe::GpuTestBase {
  protected:
@@ -378,7 +375,6 @@ TEST_F(FaceDetectionGpuTest, FaceDetectionShortRangeGpu) {
   EXPECT_EQ(output.front().Get<std::vector<mediapipe::Detection>>().size(), 1);
 }
 
-#endif
 
 }  // namespace
 }  // namespace mediapipe

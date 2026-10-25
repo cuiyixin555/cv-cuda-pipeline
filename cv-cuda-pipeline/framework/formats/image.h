@@ -29,16 +29,8 @@
 
 #if !MEDIAPIPE_DISABLE_GPU
 
-#if defined(__APPLE__)
-#include <CoreVideo/CoreVideo.h>
 
-#include "cv-cuda-pipeline/objc/CFHolder.h"
-#include "cv-cuda-pipeline/objc/util.h"
-#endif  // defined(__APPLE__)
-
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER  // OSX, use GL textures.
 #include "cv-cuda-pipeline/gpu/gl_texture_buffer.h"
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
@@ -86,32 +78,18 @@ class Image {
   // Creates an Image representing the same image content as the input GPU
   // buffer in platform-specific representations.
 #if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  explicit Image(CFHolder<CVPixelBufferRef> pixel_buffer)
-      : Image(mediapipe::GpuBuffer(std::move(pixel_buffer))) {}
-  explicit Image(CVPixelBufferRef pixel_buffer)
-      : Image(mediapipe::GpuBuffer(pixel_buffer)) {}
-#else
   explicit Image(mediapipe::GlTextureBufferSharedPtr texture_buffer)
       : Image(mediapipe::GpuBuffer(std::move(texture_buffer))) {}
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   explicit Image(mediapipe::GpuBuffer gpu_buffer) {
     use_gpu_ = true;
     gpu_buffer_ = gpu_buffer;
   }
 
   // GPU getters.
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  CVPixelBufferRef GetCVPixelBufferRef() const {
-    if (use_gpu_ == false) ConvertToGpu();
-    return mediapipe::GetCVPixelBufferRef(gpu_buffer_);
-  }
-#else
   mediapipe::GlTextureBufferSharedPtr GetGlTextureBufferSharedPtr() const {
     if (use_gpu_ == false) ConvertToGpu();
     return gpu_buffer_.internal_storage<mediapipe::GlTextureBuffer>();
   }
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
   // Provides access to the underlying GpuBuffer storage.

@@ -19,6 +19,7 @@ and image segmentation.
 
 - Linux (Ubuntu recommended)
 - Bazelisk or a compatible Bazel installation
+- OpenJDK 21 JDK, with `JAVA_HOME` set to its installation directory
 - A C++20 compiler and the system development libraries required by the
   selected targets
 - OpenCV development libraries for examples that use OpenCV
@@ -28,9 +29,29 @@ Exact system dependencies depend on the target and platform. CPU examples
 avoid requiring a CUDA-capable GPU, but still need their declared native
 dependencies at build and run time.
 
-## Build and run
+## WSL setup, build, and run
 
-Run commands from the repository root.
+The following commands set up a WSL Ubuntu environment. Install the JDK once:
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-21-jdk-headless
+```
+
+Set `JAVA_HOME` and add the JDK binaries to `PATH` in each new shell:
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+javac -version
+```
+
+Both version commands should report Java 21. To load these settings
+automatically in future Bash shells, add the two `export` lines to
+`~/.bashrc`, then run `source ~/.bashrc`.
+
+Run the following commands from the repository root:
 
 Build and run the small C++ example:
 
@@ -52,15 +73,21 @@ bazel build -c opt \
 Run face detection on a video file and write an annotated output:
 
 ```bash
+cd /mnt/c/Users/xincu/cv-cuda-pipeline
+
+LD_LIBRARY_PATH=/home/cuixin/.local/opencv/usr/lib/x86_64-linux-gnu \
 GLOG_logtostderr=1 \
 bazel-bin/cv-cuda-pipeline/examples/desktop/face_detection/face_detection_cpu \
   --calculator_graph_config_file=cv-cuda-pipeline/graphs/face_detection/face_detection_desktop_live.pbtxt \
-  --input_video_path=/absolute/path/to/input.mp4 \
-  --output_video_path=/absolute/path/to/output.mp4
+  --input_video_path='/mnt/c/Users/xincu/Videos/Bandicam/bandicam 2026-09-09 21-08-00-110.mp4' \
+  --output_video_path=bazel-out/face_detection_output.mp4
 ```
 
-If OpenCV was installed in a non-system directory, configure the runtime
-library search path for that installation before launching the executable.
+The `LD_LIBRARY_PATH` above is for an OpenCV installation in the user's home
+directory. If OpenCV is installed in a different non-system location, replace
+it with that installation's library directory; omit it if OpenCV libraries are
+available in the system library paths. The annotated video is written to
+`bazel-out/face_detection_output.mp4`.
 
 Other desktop examples and their Bazel targets are under
 [`cv-cuda-pipeline/examples/desktop`](./cv-cuda-pipeline/examples/desktop).

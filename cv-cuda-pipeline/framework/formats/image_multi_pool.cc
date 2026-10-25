@@ -21,12 +21,6 @@
 #include "absl/synchronization/mutex.h"
 #include "cv-cuda-pipeline/framework/port/logging.h"
 
-#if !MEDIAPIPE_DISABLE_GPU
-#ifdef __APPLE__
-#include "cv-cuda-pipeline/objc/CFHolder.h"
-#include "cv-cuda-pipeline/objc/util.h"
-#endif  // __APPLE__
-#endif  // !MEDIAPIPE_DISABLE_GPU
 
 namespace mediapipe {
 
@@ -38,62 +32,6 @@ static constexpr int kMaxPoolCount = 20;
 
 #if !MEDIAPIPE_DISABLE_GPU
 
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-
-ImageMultiPool::SimplePoolGpu ImageMultiPool::MakeSimplePoolGpu(
-    IBufferSpec spec) {
-  OSType cv_format = mediapipe::CVPixelFormatForGpuBufferFormat(
-      GpuBufferFormatForImageFormat(spec.format));
-  ABSL_CHECK_NE(cv_format, -1) << "unsupported pixel format";
-  return MakeCFHolderAdopting(mediapipe::CreateCVPixelBufferPool(
-      spec.width, spec.height, cv_format, kKeepCount,
-      0.1 /* max age in seconds */));
-}
-
-Image ImageMultiPool::GetBufferFromSimplePool(
-    IBufferSpec spec, const ImageMultiPool::SimplePoolGpu& pool) {
-#if TARGET_IPHONE_SIMULATOR
-  // On the simulator, syncing the texture with the pixelbuffer does not work,
-  // and we have to use glReadPixels. Since GL_UNPACK_ROW_LENGTH is not
-  // available in OpenGL ES 2, we should create the buffer so the pixels are
-  // contiguous.
-  //
-  // TODO: verify if we can use kIOSurfaceBytesPerRow to force the
-  // pool to give us contiguous data.
-  OSType cv_format = mediapipe::CVPixelFormatForGpuBufferFormat(
-      mediapipe::GpuBufferFormatForImageFormat(spec.format));
-  ABSL_CHECK_NE(cv_format, -1) << "unsupported pixel format";
-  CVPixelBufferRef buffer;
-  CVReturn err = mediapipe::CreateCVPixelBufferWithoutPool(
-      spec.width, spec.height, cv_format, &buffer);
-  ABSL_CHECK(!err) << "Error creating pixel buffer: " << err;
-  return Image(MakeCFHolderAdopting(buffer));
-#else
-  CVPixelBufferRef buffer;
-  // TODO: allow the keepCount and the allocation threshold to be set
-  // by the application, and to be set independently.
-  static CFDictionaryRef auxAttributes =
-      mediapipe::CreateCVPixelBufferPoolAuxiliaryAttributesForThreshold(
-          kKeepCount);
-  CVReturn err = mediapipe::CreateCVPixelBufferWithPool(
-      *pool, auxAttributes,
-      [this]() {
-        absl::MutexLock lock(&mutex_gpu_);
-        for (const auto& cache : texture_caches_) {
-#if TARGET_OS_OSX
-          CVOpenGLTextureCacheFlush(*cache, 0);
-#else
-          CVOpenGLESTextureCacheFlush(*cache, 0);
-#endif  // TARGET_OS_OSX
-        }
-      },
-      &buffer);
-  ABSL_CHECK(!err) << "Error creating pixel buffer: " << err;
-  return Image(MakeCFHolderAdopting(buffer));
-#endif  // TARGET_IPHONE_SIMULATOR
-}
-
-#else
 
 ImageMultiPool::SimplePoolGpu ImageMultiPool::MakeSimplePoolGpu(
     IBufferSpec spec) {
@@ -109,7 +47,6 @@ Image ImageMultiPool::GetBufferFromSimplePool(
   return Image(*std::move(buffer));
 }
 
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
@@ -189,35 +126,7 @@ Image ImageMultiPool::GetBuffer(int width, int height, bool use_gpu,
 }
 
 ImageMultiPool::~ImageMultiPool() {
-#if !MEDIAPIPE_DISABLE_GPU
-#ifdef __APPLE__
-  ABSL_CHECK_EQ(texture_caches_.size(), 0)
-      << "Failed to unregister texture caches before deleting pool";
-#endif  // defined(__APPLE__)
-#endif  // !MEDIAPIPE_DISABLE_GPU
 }
 
-#if !MEDIAPIPE_DISABLE_GPU
-#ifdef __APPLE__
-void ImageMultiPool::RegisterTextureCache(mediapipe::CVTextureCacheType cache) {
-  absl::MutexLock lock(&mutex_gpu_);
-
-  ABSL_CHECK(std::find(texture_caches_.begin(), texture_caches_.end(), cache) ==
-             texture_caches_.end())
-      << "Attempting to register a texture cache twice";
-  texture_caches_.emplace_back(cache);
-}
-
-void ImageMultiPool::UnregisterTextureCache(
-    mediapipe::CVTextureCacheType cache) {
-  absl::MutexLock lock(&mutex_gpu_);
-
-  auto it = std::find(texture_caches_.begin(), texture_caches_.end(), cache);
-  ABSL_CHECK(it != texture_caches_.end())
-      << "Attempting to unregister an unknown texture cache";
-  texture_caches_.erase(it);
-}
-#endif  // defined(__APPLE__)
-#endif  // !MEDIAPIPE_DISABLE_GPU
 
 }  // namespace mediapipe

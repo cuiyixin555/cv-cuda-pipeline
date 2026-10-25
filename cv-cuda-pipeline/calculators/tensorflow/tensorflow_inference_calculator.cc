@@ -42,7 +42,7 @@
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/framework/tensor_util.h"
 
-#if !defined(__EMSCRIPTEN__) && !defined(__APPLE__)
+#if !defined(__EMSCRIPTEN__)
 #include "tensorflow/core/profiler/lib/traceme.h"
 #endif
 
@@ -549,7 +549,7 @@ class TensorFlowInferenceCalculator : public CalculatorBase {
     const int64_t run_start_time = absl::ToUnixMicros(clock_->TimeNow());
     absl::Status tf_status;
     {
-#if !defined(__EMSCRIPTEN__) && !defined(__APPLE__)
+#if !defined(__EMSCRIPTEN__)
       tsl::profiler::TraceMe trace(absl::string_view(cc->NodeName()));
 #endif
       tf_status = session_->Run(input_tensors, output_tensor_names,

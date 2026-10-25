@@ -33,7 +33,6 @@ from setuptools.command import install
 __version__ = 'dev'
 MP_DISABLE_GPU = os.environ.get('MEDIAPIPE_DISABLE_GPU') != '0'
 IS_WINDOWS = (platform.system() == 'Windows')
-IS_MAC = (platform.system() == 'Darwin')
 MP_ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 MP_DIR_INIT_PY = os.path.join(MP_ROOT_PATH, 'cv-cuda-pipeline/__init__.py')
 MP_THIRD_PARTY_BUILD = os.path.join(MP_ROOT_PATH, 'third_party/BUILD')
@@ -47,11 +46,6 @@ GPU_OPTIONS_ENABLED = [
     '--copt=-DMESA_EGL_NO_X11_HEADERS',
     '--copt=-DEGL_NO_X11',
 ]
-if IS_MAC:
-  GPU_OPTIONS_ENABLED.append(
-      '--copt=-DMEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER'
-  )
-
 GPU_OPTIONS = GPU_OPTIONS_DISABLED if MP_DISABLE_GPU else GPU_OPTIONS_ENABLED
 
 
@@ -242,15 +236,8 @@ class BuildExtension(build_ext.build_ext):
       return
 
     _check_bazel()
-    if IS_MAC:
-      for ext in self.extensions:
-        self._build_binary(
-            ext,
-            ['--cpu=darwin_arm64'],
-        )
-    else:
-      for ext in self.extensions:
-        self._build_binary(ext)
+    for ext in self.extensions:
+      self._build_binary(ext)
 
   def _build_binary(self, ext, extra_args=None):
     os.makedirs(self.build_temp, exist_ok=True)
@@ -407,7 +394,6 @@ setuptools.setup(
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
-        'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.9',

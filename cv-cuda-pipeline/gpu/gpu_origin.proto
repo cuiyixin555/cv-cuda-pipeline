@@ -25,11 +25,9 @@ message GpuOrigin {
     DEFAULT = 0;
 
     // OpenGL: bottom-left origin
-    // Metal : top-left origin
     CONVENTIONAL = 1;
 
     // OpenGL: top-left origin
-    // Metal : top-left origin
     TOP_LEFT = 2;
   }
 }

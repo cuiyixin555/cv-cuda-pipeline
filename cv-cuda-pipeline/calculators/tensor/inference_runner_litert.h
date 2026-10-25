@@ -55,19 +55,10 @@
 #include "cv-cuda-pipeline/gpu/gl_context.h"
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 
-#if MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/framework/formats/tensor_mtl_buffer_view.h"
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 #if defined(__EMSCRIPTEN__)
 #include "cv-cuda-pipeline/gpu/webgpu/webgpu_service.h"
 #endif  // __EMSCRIPTEN__
-
-// Forward declaration of MPPMetalHelper for when the full header is not
-// included.
-#if MEDIAPIPE_METAL_ENABLED
-@class MPPMetalHelper;
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 namespace mediapipe {
 
@@ -93,9 +84,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
 #if defined(__EMSCRIPTEN__)
       WebGpuService* webgpu_service = nullptr,
 #endif  // __EMSCRIPTEN__
-#if MEDIAPIPE_METAL_ENABLED
-      void* metal_helper = nullptr,
-#endif  // MEDIAPIPE_METAL_ENABLED
       std::optional<litert::Options> litert_options = std::nullopt,
       LiteRtSystemHandles system_handles = {});
 
@@ -124,11 +112,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
       std::variant<Tensor::CpuReadView, Tensor::OpenGlBufferView>;
   using MpTensorWriteView =
       std::variant<Tensor::CpuWriteView, Tensor::OpenGlBufferView>;
-#elif MEDIAPIPE_METAL_ENABLED
-  using MpTensorReadView =
-      std::variant<Tensor::CpuReadView, mediapipe::MtlBufferView>;
-  using MpTensorWriteView =
-      std::variant<Tensor::CpuWriteView, mediapipe::MtlBufferView>;
 #else
   using MpTensorReadView = Tensor::CpuReadView;
   using MpTensorWriteView = Tensor::CpuWriteView;
@@ -162,10 +145,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
       litert::SimpleSignature signature,
       InputOutputTensorNames input_output_tensor_names,
       std::unique_ptr<InferenceFeedbackManagerLiteRt> feedback_manager
-#if MEDIAPIPE_METAL_ENABLED
-      ,
-      id<MTLCommandQueue> metal_command_queue = nil
-#endif  // MEDIAPIPE_METAL_ENABLED
   );
 
   static InputOutputTensorNames CreateInputOutputTensorNames(
@@ -218,22 +197,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
   absl::StatusOr<litert::RankedTensorType> CreateOutputRankedTensorType(
       const litert::RankedTensorType& model_tensor_type, litert::Layout layout);
 
-#if MEDIAPIPE_METAL_ENABLED
-  // Creates an input tensor buffer from a Metal buffer read view with
-  // zero-copy.
-  absl::StatusOr<litert::TensorBuffer> CreateMetalInputTensorBufferFromMpTensor(
-      const Tensor& mp_input_tensor,
-      const litert::RankedTensorType& tensor_type, InferenceRunContext& ctx);
-
-  // Creates an output tensor buffer from a Metal buffer write view with
-  // zero-copy.
-  absl::StatusOr<litert::TensorBuffer>
-  CreateMetalOutputTensorBufferFromMpTensor(
-      const Tensor& mp_output_tensor,
-      const litert::RankedTensorType& tensor_type,
-      std::vector<InferenceRunnerLiteRt::MpTensorWriteView>&
-          mp_output_tensor_views);
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   // Creates an input tensor buffer from host memory where the LiteRT buffer is
   // backed by MP tensor memory (zero-copy).
@@ -341,22 +304,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
 
   InputOutputTensorNames input_output_tensor_names_;
 
-#if MEDIAPIPE_METAL_ENABLED
-  // Retained `id<MTLCommandQueue>`, released in the destructor.
-  //
-  // We intentionally retain the command queue itself rather than the
-  // MPPMetalHelper it came from. MPPMetalHelper holds a *non-owning*
-  // pointer to the graph's GpuResources, while this runner can be stored in
-  // mediapipe::aimatter::Cache and reused by a later graph -- long after the
-  // GpuResources of the graph that created it has been destroyed. Calling back
-  // into the helper from the inference hot path therefore dereferences freed
-  // memory. See b/561616000.
-  void* metal_command_queue_ = nullptr;
-  void* metal_command_buffer_ = nullptr;
-  // Returns the current metal command buffer. Creates it if it doesn't exist.
-  // The command buffer is committed just before running the model.
-  id<MTLCommandBuffer> GetMetalCommandBuffer();
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   // Feedback manager is only created if the model has feedback tensors.
   std::unique_ptr<InferenceFeedbackManagerLiteRt> feedback_manager_;

@@ -57,7 +57,6 @@ def mediapipe_proto_library_impl(
         def_py_proto = True,
         def_java_lite_proto = True,
         def_kt_lite_proto = True,
-        def_objc_proto = True,
         def_java_proto = True,
         def_jspb_proto = True,
         def_go_proto = True,
@@ -81,7 +80,6 @@ def mediapipe_proto_library_impl(
       def_py_proto: define the py_proto_library target
       def_java_lite_proto: define the java_lite_proto_library target
       def_kt_lite_proto: define the kt_lite_proto_library target
-      def_objc_proto: define the objc_proto_library target
       def_java_proto: define the java_proto_library target
       def_jspb_proto: define the jspb_proto_library target
       def_go_proto: define the go_proto_library target
@@ -218,10 +216,6 @@ def rewrite_mediapipe_proto(name, rewrite_proto, source_proto, **kwargs):
         r"mediapipe\.(" + rewrite_message_regex + ")",
         r"mediapipe.\\1",
     )
-    rewrite_objc = SubsituteCommand(
-        r'objc_class_prefix = "MediaPipe"',
-        r'objc_class_prefix = "MPP"',
-    )
     native.genrule(
         name = name,
         outs = [rewrite_proto],
@@ -232,7 +226,6 @@ def rewrite_mediapipe_proto(name, rewrite_proto, source_proto, **kwargs):
               "  | " + rewrite_import +
               "  | " + rewrite_import_public +
               "  | " + rewrite_ref +
-              "  | " + rewrite_objc +
               "  > $$OUT \n" +
               "done",
         **kwargs
@@ -267,7 +260,6 @@ def mediapipe_proto_library(
         def_java_lite_proto = True,
         def_kt_lite_proto = True,
         def_portable_proto = True,  # @unused
-        def_objc_proto = True,
         def_java_proto = True,
         def_jspb_proto = True,
         def_go_proto = True,
@@ -295,7 +287,6 @@ def mediapipe_proto_library(
       def_java_lite_proto: define the java_lite_proto_library target
       def_kt_lite_proto: define the kt_lite_proto_library target
       def_portable_proto: ignored since portable protos are gone
-      def_objc_proto: define the objc_proto_library target
       def_java_proto: define the java_proto_library target
       def_jspb_proto: define the jspb_proto_library target
       def_go_proto: define the go_proto_library target
@@ -319,7 +310,6 @@ def mediapipe_proto_library(
         def_py_proto = def_py_proto,
         def_java_lite_proto = def_java_lite_proto,
         def_kt_lite_proto = def_kt_lite_proto,
-        def_objc_proto = def_objc_proto,
         def_java_proto = def_java_proto,
         def_jspb_proto = def_jspb_proto,
         def_go_proto = def_go_proto,
@@ -351,7 +341,6 @@ def mediapipe_proto_library(
             def_py_proto = def_py_proto,
             def_java_lite_proto = def_java_lite_proto,
             def_kt_lite_proto = def_kt_lite_proto,
-            def_objc_proto = def_objc_proto,
             def_java_proto = def_java_proto,
             def_jspb_proto = def_jspb_proto,
             def_go_proto = def_go_proto,

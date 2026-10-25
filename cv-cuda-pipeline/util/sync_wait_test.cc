@@ -9,17 +9,12 @@
 #include "absl/time/time.h"
 #include "cv-cuda-pipeline/framework/formats/shared_fd.h"
 #include "cv-cuda-pipeline/framework/formats/unique_fd.h"
-#include "cv-cuda-pipeline/framework/port.h"  // IWYU pragma: keep (DRIHSTI_OSX)
 #include "cv-cuda-pipeline/framework/port/benchmark.h"
 #include "cv-cuda-pipeline/framework/port/gmock.h"
 #include "cv-cuda-pipeline/framework/port/gtest.h"
 #include "cv-cuda-pipeline/framework/port/status_matchers.h"
 
-#ifdef MEDIAPIPE_OSX
-#include <sys/event.h>
-#else
 #include <sys/timerfd.h>
-#endif  // MEDIAPIPE_OSX
 
 namespace mediapipe {
 namespace {
@@ -28,21 +23,6 @@ struct TestTimer {
   UniqueFd fd;
 };
 
-#ifdef MEDIAPIPE_OSX
-TestTimer CreateTestTimer(absl::Duration duration) {
-  int kq = kqueue();
-  ABSL_CHECK_NE(kq, -1);
-
-  struct kevent kev;
-  constexpr int kTimerId = 1;
-  const int timeout = static_cast<int>(absl::ToInt64Milliseconds(duration));
-  EV_SET(&kev, kTimerId, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_ONESHOT,
-         NOTE_CRITICAL, timeout, NULL);
-  kevent(kq, &kev, 1, NULL, 0, NULL);
-
-  return TestTimer{UniqueFd(kq)};
-}
-#else
 TestTimer CreateTestTimer(absl::Duration duration) {
   const int fd = timerfd_create(CLOCK_MONOTONIC, /*flags*/ 0);
   ABSL_CHECK_NE(fd, -1);
@@ -59,7 +39,6 @@ TestTimer CreateTestTimer(absl::Duration duration) {
 
   return timer;
 }
-#endif  // MEDIAPIPE_OSX
 
 TEST(SyncWait, WorksWithIndefiniteTimeout) {
   TestTimer timer = CreateTestTimer(absl::Milliseconds(2));

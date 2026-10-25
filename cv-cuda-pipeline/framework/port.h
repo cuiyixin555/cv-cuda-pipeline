@@ -18,18 +18,10 @@
 #ifndef MEDIAPIPE_FRAMEWORK_PORT_H_
 #define MEDIAPIPE_FRAMEWORK_PORT_H_
 
-// Set platform-specific defines for projects using alternative build systems.
-#if defined(__APPLE__)
-#include "TargetConditionals.h"  // for TARGET_OS_*
-#if !defined(MEDIAPIPE_OSX) && TARGET_OS_OSX
-#define MEDIAPIPE_OSX
-#endif
-#endif
-
 // These platforms do not support OpenGL ES Compute Shaders (v3.1 and up),
 // but may or may not still be able to run other OpenGL code.
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) &&                                  \
-    (defined(__APPLE__) || defined(__EMSCRIPTEN__) || MEDIAPIPE_DISABLE_GPU || \
+#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) &&            \
+    (defined(__EMSCRIPTEN__) || MEDIAPIPE_DISABLE_GPU || \
      MEDIAPIPE_USING_LEGACY_SWIFTSHADER)
 #define MEDIAPIPE_DISABLE_GL_COMPUTE
 #endif
@@ -46,19 +38,9 @@
 // TODO: identify and fix code where macro is used incorrectly.
 #if MEDIAPIPE_DISABLE_GPU
 #define MEDIAPIPE_OPENGL_ES_VERSION 0
-#define MEDIAPIPE_METAL_ENABLED 0
-#else
-#if defined(MEDIAPIPE_OSX)
-#define MEDIAPIPE_OPENGL_ES_VERSION 0
-#if MEDIAPIPE_USE_WEBGPU
-#define MEDIAPIPE_METAL_ENABLED 0
-#else
-#define MEDIAPIPE_METAL_ENABLED 1
-#endif  // MEDIAPIPE_USE_WEBGPU
 #elif defined(__EMSCRIPTEN__)
 // WebGL config.
 #define MEDIAPIPE_OPENGL_ES_VERSION MEDIAPIPE_OPENGL_ES_30
-#define MEDIAPIPE_METAL_ENABLED 0
 #else
 #if MEDIAPIPE_USE_WEBGPU
 // TODO: `MEDIAPIPE_USE_WEBGPU` does not necessarily imply
@@ -68,8 +50,6 @@
 #define MEDIAPIPE_OPENGL_ES_VERSION 0
 #else
 #define MEDIAPIPE_OPENGL_ES_VERSION MEDIAPIPE_OPENGL_ES_31
-#endif
-#define MEDIAPIPE_METAL_ENABLED 0
 #endif
 #endif
 

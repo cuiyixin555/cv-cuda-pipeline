@@ -21,7 +21,7 @@ as the primary developer documentation site for MediaPipe as of April 3, 2023.*
 
 ## Overview
 
-MediaPipe supports calculator nodes for GPU compute and rendering, and allows combining multiple GPU nodes, as well as mixing them with CPU based calculator nodes. GPU APIs vary by platform (e.g. OpenGL, Metal and Vulkan). MediaPipe does not attempt to offer a single cross-API GPU abstraction. Individual nodes can be written using different APIs, allowing them to take advantage of platform specific features when needed.
+MediaPipe supports calculator nodes for GPU compute and rendering, and allows combining multiple GPU nodes, as well as mixing them with CPU based calculator nodes. GPU APIs include OpenGL, CUDA and Vulkan. MediaPipe does not attempt to offer a single cross-API GPU abstraction. Individual nodes can be written using different APIs, allowing them to take advantage of platform specific features when needed.
 
 GPU support is useful for performance-sensitive workloads, especially real-time video. MediaPipe enables developers to write GPU compatible calculators that support the use of GPU for:
 

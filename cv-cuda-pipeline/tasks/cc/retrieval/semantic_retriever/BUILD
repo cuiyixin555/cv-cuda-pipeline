@@ -40,7 +40,6 @@ cc_import(
         "@bazel_tools//src/conditions:linux_x86_64": "@com_google_mediapipe_desktop_linux_x86_64_libsqlite_vector_store_a//file",
         "@bazel_tools//src/conditions:windows_arm64": "@com_google_mediapipe_desktop_windows_arm64_libsqlite_vector_store_lib//file",
         "@bazel_tools//src/conditions:windows_x64": "@com_google_mediapipe_desktop_windows_x86_64_libsqlite_vector_store_lib//file",
-        "@bazel_tools//src/conditions:darwin_arm64": "@com_google_mediapipe_desktop_darwin_arm64_libsqlite_vector_store_a//file",
         "//conditions:default": "@com_google_mediapipe_desktop_linux_x86_64_libsqlite_vector_store_a//file",
     }),
 )
@@ -71,7 +70,6 @@ cc_import(
         "@bazel_tools//src/conditions:linux_x86_64": "@com_google_mediapipe_desktop_linux_x86_64_libsqlite_memory_store_a//file",
         "@bazel_tools//src/conditions:windows_arm64": "@com_google_mediapipe_desktop_windows_arm64_libsqlite_memory_store_lib//file",
         "@bazel_tools//src/conditions:windows_x64": "@com_google_mediapipe_desktop_windows_x86_64_libsqlite_memory_store_lib//file",
-        "@bazel_tools//src/conditions:darwin_arm64": "@com_google_mediapipe_desktop_darwin_arm64_libsqlite_memory_store_a//file",
         "//conditions:default": "@com_google_mediapipe_desktop_linux_x86_64_libsqlite_memory_store_a//file",
     }),
 )

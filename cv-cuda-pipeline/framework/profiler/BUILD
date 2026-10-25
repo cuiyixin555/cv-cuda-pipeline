@@ -308,14 +308,9 @@ cc_library(
         "//cv-cuda-pipeline/framework/port:status",
         "//cv-cuda-pipeline/framework/port:statusor",
         "@com_google_absl//absl/flags:flag",
-    ] + select({
-        "//conditions:default": [
+    ] + [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
-        "//cv-cuda-pipeline:apple": [
-            "//cv-cuda-pipeline/framework/port:file_helpers",
-        ],
-    }),
 )
 
 # For a more maintainable build this target should not exist and the headers

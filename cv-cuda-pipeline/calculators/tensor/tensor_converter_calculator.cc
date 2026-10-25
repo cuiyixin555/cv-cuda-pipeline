@@ -43,10 +43,7 @@
 #include "cv-cuda-pipeline/gpu/gpu_buffer_format.h"
 #include "cv-cuda-pipeline/gpu/gpu_origin.pb.h"
 
-#if MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/calculators/tensor/tensor_converter_metal.h"
-#import "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
@@ -55,7 +52,7 @@
 #include "cv-cuda-pipeline/calculators/tensor/tensor_converter_gl30.h"
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
 namespace {
@@ -118,9 +115,8 @@ namespace mediapipe {
 // Output:
 //  One of the following tags:
 //  TENSORS - Vector of Tensors of type kFloat32. The resource type used:
-//          - MTLBuffer if Metal API is available
-//          - SSBO if Metal is unavailable and OpenGL ES 3.1 is available
-//          - Texture2D if Metal and GLES 3.1 are not available and GLES 3.0 is.
+//          - SSBO if OpenGL ES 3.1 is available
+//          - Texture2D if GLES 3.1 is not available and GLES 3.0 is.
 //  TENSOR  - Tensor of type kFloat32. Resource type same as in TENSORS
 //
 // Example use:
@@ -152,11 +148,9 @@ class TensorConverterCalculator : public CalculatorBase {
   absl::StatusOr<std::optional<Tensor>> ProcessCPU(CalculatorContext* cc);
   absl::StatusOr<std::optional<Tensor>> ProcessGPU(CalculatorContext* cc);
 
-#if MEDIAPIPE_METAL_ENABLED
-  MPPMetalHelper* gpu_helper_ = nullptr;
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
   GlCalculatorHelper gpu_helper_;
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
   bool initialized_ = false;
   bool use_gpu_ = false;
   std::optional<std::pair<float, float>> output_range_;
@@ -188,11 +182,9 @@ absl::Status TensorConverterCalculator::GetContract(CalculatorContract* cc) {
 #if !MEDIAPIPE_DISABLE_GPU
   if (cc->Inputs().HasTag(kGpuBufferTag)) {
     cc->Inputs().Tag(kGpuBufferTag).Set<mediapipe::GpuBuffer>();
-#if MEDIAPIPE_METAL_ENABLED
-    ABSL_RETURN_IF_ERROR([MPPMetalHelper updateContract:cc]);
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
     ABSL_RETURN_IF_ERROR(GlCalculatorHelper::UpdateContract(cc));
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
   }
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
@@ -218,12 +210,9 @@ absl::Status TensorConverterCalculator::Open(CalculatorContext* cc) {
 #if !MEDIAPIPE_DISABLE_GPU
   if (cc->Inputs().HasTag(kGpuBufferTag)) {
     use_gpu_ = true;
-#if MEDIAPIPE_METAL_ENABLED
-    gpu_helper_ = [[MPPMetalHelper alloc] initWithCalculatorContext:cc];
-    RET_CHECK(gpu_helper_);
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
     ABSL_RETURN_IF_ERROR(gpu_helper_.Open(cc));
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
   }
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
@@ -265,11 +254,9 @@ absl::Status TensorConverterCalculator::Process(CalculatorContext* cc) {
 absl::Status TensorConverterCalculator::Close(CalculatorContext* cc) {
 #if !MEDIAPIPE_DISABLE_GPU
   if (use_gpu_) {
-#if MEDIAPIPE_METAL_ENABLED
-    tensor_converter_gpu_.reset();
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
     gpu_helper_.RunInGlContext([this] { tensor_converter_gpu_.reset(); });
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
   }
 #endif  // !MEDIAPIPE_DISABLE_GPU
   return absl::OkStatus();
@@ -314,10 +301,7 @@ absl::StatusOr<std::optional<Tensor>> TensorConverterCalculator::ProcessGPU(
   }
   const auto& input =
       cc->Inputs().Tag(kGpuBufferTag).Get<mediapipe::GpuBuffer>();
-#if MEDIAPIPE_METAL_ENABLED
-  Tensor output = tensor_converter_gpu_->Convert(input);
-  return std::move(output);
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
   std::optional<Tensor> output;
   ABSL_RETURN_IF_ERROR(
       gpu_helper_.RunInGlContext([this, &output, &input]() -> absl::Status {
@@ -325,7 +309,7 @@ absl::StatusOr<std::optional<Tensor>> TensorConverterCalculator::ProcessGPU(
         return absl::OkStatus();
       }));
   return std::move(output);
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
 #else
   RET_CHECK_FAIL() << "GPU processing is not enabled.";
 #endif  // !MEDIAPIPE_DISABLE_GPU
@@ -360,13 +344,7 @@ absl::Status TensorConverterCalculator::InitGpu(CalculatorContext* cc) {
         << static_cast<uint32_t>(format);
   }
 
-#if MEDIAPIPE_METAL_ENABLED
-  ABSL_ASSIGN_OR_RETURN(
-      tensor_converter_gpu_,
-      CreateTensorConverterMetal(gpu_helper_, memory_manager_, output_range_,
-                                 include_alpha, single_channel,
-                                 flip_vertically_, max_num_channels_));
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
   ABSL_RETURN_IF_ERROR(gpu_helper_.RunInGlContext(
       [this, &input, &include_alpha, &single_channel]() -> absl::Status {
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31

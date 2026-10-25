@@ -49,15 +49,9 @@ def halide_language_linkopts():
         "-lz",
         "-rdynamic",
     ]
-    _osx_opts = [
-        "-lz",
-        "-Wl,-stack_size",
-        "-Wl,1000000",
-    ]
     _msvc_opts = []
     return select({
         "//conditions:default": _linux_opts,
-        "@mediapipe//cv-cuda-pipeline:macos": _osx_opts,
         "@mediapipe//cv-cuda-pipeline:windows": _msvc_opts,
     })
 
@@ -80,10 +74,6 @@ def halide_runtime_linkopts():
 
 # Map of halide-target-base -> config_settings
 _HALIDE_TARGET_CONFIG_SETTINGS_MAP = {
-    # macOS
-    "x86-32-osx": [],
-    "x86-64-osx": ["@mediapipe//cv-cuda-pipeline:macos_x86_64",],
-    "arm-64-osx": ["@mediapipe//cv-cuda-pipeline:macos_arm64"],
     # Windows
     "x86-64-windows": ["@mediapipe//cv-cuda-pipeline:windows"],
     # Linux
@@ -96,11 +86,6 @@ _HALIDE_TARGET_MAP_DEFAULT = {
         "x86-64-linux-sse41-avx-avx2-fma",
         "x86-64-linux-sse41",
         "x86-64-linux",
-    ],
-    "x86-64-osx": [
-        "x86-64-osx-sse41-avx-avx2-fma",
-        "x86-64-osx-sse41",
-        "x86-64-osx",
     ],
     "x86-64-windows": [
         "x86-64-windows-sse41-avx-avx2-fma",
@@ -596,7 +581,6 @@ def _standard_library_runtime_features():
     _standard_features = [
         [],
         ["cuda"],
-        ["metal"],
         ["opencl"],
         ["openglcompute"],
         ["openglcompute", "egl"],

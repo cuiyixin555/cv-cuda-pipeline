@@ -41,7 +41,7 @@ message TfLiteInferenceCalculatorOptions {
     // Default inference provided by tflite.
     message TfLite {}
     // Delegate to run GPU inference depending on the device.
-    // (Can use OpenGl, OpenCl, Metal depending on the device.)
+    // (Can use OpenGL or OpenCL depending on the device.)
     message Gpu {
       // Experimental, Linux only. Use TFLite GPU delegate API2 for
       // the NN inference.

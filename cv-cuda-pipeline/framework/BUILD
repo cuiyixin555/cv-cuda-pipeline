@@ -1152,12 +1152,7 @@ cc_library(
         "scheduler_queue.h",
         "scheduler_shared.h",
     ],
-    copts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "-ObjC++",
-        ],
-    }),
+    copts = [],
     visibility = [":mediapipe_internal"],
     deps = [
         ":calculator_context",

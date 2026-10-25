@@ -46,9 +46,6 @@
 #include "tflite/model.h"
 #include "tflite/util.h"
 
-#ifdef __APPLE__
-#include <CoreFoundation/CoreFoundation.h>
-#endif  // defined(__APPLE__)
 
 namespace mediapipe {
 namespace {

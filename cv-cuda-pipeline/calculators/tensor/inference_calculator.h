@@ -217,10 +217,6 @@ struct InferenceCalculatorGlAdvanced : public InferenceCalculator {
   static constexpr char kCalculatorName[] = "InferenceCalculatorGlAdvanced";
 };
 
-struct InferenceCalculatorMetal : public InferenceCalculator {
-  static constexpr char kCalculatorName[] = "InferenceCalculatorMetal";
-};
-
 struct InferenceCalculatorCpu : public InferenceCalculator {
   static constexpr char kCalculatorName[] = "InferenceCalculatorCpu";
 };

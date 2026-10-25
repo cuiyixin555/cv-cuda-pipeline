@@ -239,19 +239,6 @@ absl::Status GlScalerCalculator::Process(CalculatorContext* cc) {
     GlTexture src1;
     GlTexture src2;
 
-#ifdef __APPLE__
-    if (input.format() == GpuBufferFormat::kBiPlanar420YpCbCr8VideoRange ||
-        input.format() == GpuBufferFormat::kBiPlanar420YpCbCr8FullRange) {
-      if (!yuv_renderer_) {
-        yuv_renderer_ = absl::make_unique<QuadRenderer>();
-        ABSL_RETURN_IF_ERROR(yuv_renderer_->GlSetup(
-            kYUV2TexToRGBFragmentShader, {"video_frame_y", "video_frame_uv"}));
-      }
-      renderer = yuv_renderer_.get();
-      src1 = helper_.CreateSourceTexture(input, 0);
-      src2 = helper_.CreateSourceTexture(input, 1);
-    } else  // NOLINT(readability/braces)
-#endif      // __APPLE__
     {
       src1 = helper_.CreateSourceTexture(input);
       if (!rgb_renderer_) {

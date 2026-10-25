@@ -249,21 +249,8 @@ void ImageSubmodule(pybind11::module* module) {
         int height;
         int channels;
 
-#if TARGET_OS_OSX && !MEDIAPIPE_DISABLE_GPU
-        // Our ObjC layer does not support 3-channel images, so we read the
-        // number of channels first and request RGBA if needed.
-        if (stbi_info(file_name.c_str(), &width, &height, &channels)) {
-          if (channels == 3) {
-            channels = 4;
-          }
-          int unused;
-          image_data =
-              stbi_load(file_name.c_str(), &width, &height, &unused, channels);
-        }
-#else
         image_data = stbi_load(file_name.c_str(), &width, &height, &channels,
                                /*desired_channels=*/0);
-#endif  // TARGET_OS_OSX && !MEDIAPIPE_DISABLE_GPU
         if (image_data == nullptr) {
           throw RaisePyError(PyExc_RuntimeError,
                              absl::StrFormat("Image decoding failed (%s): %s",
@@ -277,13 +264,11 @@ void ImageSubmodule(pybind11::module* module) {
                 ImageFormat::GRAY8, width, height, width, image_data,
                 stbi_image_free);
             break;
-#if !TARGET_OS_OSX || MEDIAPIPE_DISABLE_GPU
           case 3:
             image_frame = std::make_shared<ImageFrame>(
                 ImageFormat::SRGB, width, height, 3 * width, image_data,
                 stbi_image_free);
             break;
-#endif  // !TARGET_OS_OSX || MEDIAPIPE_DISABLE_GPU
           case 4:
             image_frame = std::make_shared<ImageFrame>(
                 ImageFormat::SRGBA, width, height, 4 * width, image_data,

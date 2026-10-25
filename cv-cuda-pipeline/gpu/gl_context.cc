@@ -89,8 +89,6 @@ static void SetThreadName(const char* name) {
     ABSL_LOG_FIRST_N(INFO, 1)
         << "Can't set pthread names: name: \"" << name << "\"; error: " << res;
   }
-#elif __APPLE__
-  pthread_setname_np(name);
 #endif
   ABSL_ANNOTATE_THREAD_NAME(name);
 }
@@ -138,29 +136,20 @@ void* GlContext::DedicatedThread::ThreadBody(void* instance) {
   return nullptr;
 }
 
-#ifdef __APPLE__
-#define AUTORELEASEPOOL @autoreleasepool
-#else
-#define AUTORELEASEPOOL
-#endif  // __APPLE__
-
 void GlContext::DedicatedThread::ThreadBody() {
   SetThreadName("mediapipe_gl_runner");
 
 #ifndef __EMSCRIPTEN__
   GlThreadCollector::ThreadStarting();
 #endif
-  // The dedicated GL thread is not meant to be used on Apple platforms, but
-  // in case it is, the use of an autorelease pool here will reap each task's
-  // temporary allocations.
-  while (true) AUTORELEASEPOOL {
-      Job job = GetJob();
-      // Lack of a job means termination. Or vice versa.
-      if (!job) {
-        break;
-      }
-      job();
+  while (true) {
+    Job job = GetJob();
+    // Lack of a job means termination. Or vice versa.
+    if (!job) {
+      break;
     }
+    job();
+  }
   if (self_destruct_) {
     delete this;
   }
@@ -414,14 +403,6 @@ GlContext::GlContext() = default;
 
 GlContext::~GlContext() {
   destructing_ = true;
-  // Note: on Apple platforms, this object contains Objective-C objects.
-  // The destructor will release them, but ARC must be on.
-#ifdef __OBJC__
-#if !__has_feature(objc_arc)
-#error This file must be built with ARC.
-#endif
-#endif  // __OBJC__
-
   auto clear_attachments = [this] {
     attachments_.clear();
     auto* profiling_helper = profiling_helper_owner_.Get();

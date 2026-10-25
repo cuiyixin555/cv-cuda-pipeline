@@ -147,19 +147,4 @@ cc_binary(
     deps = [":gesture_recognizer_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/gesture_recognizer:libgesture_recognizer.dylib
-cc_binary(
-    name = "libgesture_recognizer.dylib",
-    linkopts = [
-        "-Wl,-install_name,libgesture_recognizer.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":gesture_recognizer_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

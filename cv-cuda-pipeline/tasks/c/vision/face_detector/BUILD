@@ -106,19 +106,4 @@ cc_binary(
     deps = [":face_detector_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/face_detector:libface_detector.dylib
-cc_binary(
-    name = "libface_detector.dylib",
-    linkopts = [
-        "-Wl,-install_name,libface_detector.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":face_detector_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

@@ -24,9 +24,6 @@
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #include "cv-cuda-pipeline/gpu/gpu_buffer.h"
 
-#ifdef __APPLE__
-#include "cv-cuda-pipeline/objc/util.h"
-#endif
 
 namespace mediapipe::api3 {
 
@@ -41,9 +38,7 @@ class ImageFrameToGpuBufferCalculator
       CalculatorContext<ImageFrameToGpuBufferNode>& cc) override;
 
  private:
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   mediapipe::GlCalculatorHelper helper_;
-#endif  // !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 };
 
 // static
@@ -57,9 +52,7 @@ absl::Status ImageFrameToGpuBufferCalculator::UpdateContract(
 
 absl::Status ImageFrameToGpuBufferCalculator::Open(
     CalculatorContext<ImageFrameToGpuBufferNode>& cc) {
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   ABSL_RETURN_IF_ERROR(helper_.Open(&cc.GetGenericContext()));
-#endif  // !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   return absl::OkStatus();
 }
 
@@ -67,19 +60,12 @@ absl::Status ImageFrameToGpuBufferCalculator::Process(
     CalculatorContext<ImageFrameToGpuBufferNode>& cc) {
   RET_CHECK(cc.image_frame);
 
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  CFHolder<CVPixelBufferRef> buffer;
-  ABSL_RETURN_IF_ERROR(CreateCVPixelBufferForImageFramePacket(
-      cc.image_frame.Packet().AsLegacyPacket(), &buffer));
-  cc.gpu_buffer.Send(GpuBuffer(buffer));
-#else
   const auto& input = cc.image_frame.GetOrDie();
   helper_.RunInGlContext([this, &input, &cc]() {
     GlTexture dst = helper_.CreateDestinationTexture(input);
     cc.gpu_buffer.Send(dst.GetFrame<GpuBuffer>());
     dst.Release();
   });
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   return absl::OkStatus();
 }
 

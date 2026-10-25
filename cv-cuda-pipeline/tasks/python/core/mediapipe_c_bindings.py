@@ -15,7 +15,6 @@
 
 import ctypes
 import os
-import platform
 from typing import Any, List, Optional, Sequence
 
 from importlib import resources
@@ -46,10 +45,7 @@ def load_raw_library(
   global _shared_lib
   if _shared_lib is None:
     if os.name == 'posix':
-      if platform.system() == 'Darwin':  # macOS
-        lib_filename = f'lib{lib_name}.dylib'
-      else:  # Linux
-        lib_filename = f'lib{lib_name}.so'
+      lib_filename = f'lib{lib_name}.so'
     else:  # Windows
       lib_filename = f'lib{lib_name}.dll'
     lib_path_context = resources.files('mediapipe.tasks.c')

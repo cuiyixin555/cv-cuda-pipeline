@@ -4,11 +4,6 @@
 
 #include "litert/cc/litert_api_types.h"  // from @litert
 
-#if MEDIAPIPE_METAL_ENABLED
-#import <Metal/Metal.h>
-
-#include "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 #include <algorithm>
 #include <cstdint>
@@ -66,10 +61,6 @@
 #include "cv-cuda-pipeline/util/tflite/tflite_model_loader.h"
 #include "cv-cuda-pipeline/util/tflite/tflite_signature_reader.h"
 
-#if MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/framework/formats/tensor_mtl_buffer_view.h"
-#include "tflite/delegates/gpu/metal/metal_device.h"
-#endif  // MEDIAPIPE_METAL_ENABLED
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 #include "cv-cuda-pipeline/gpu/gl_context.h"
 #endif
@@ -91,9 +82,6 @@ constexpr litert::TensorBufferType kPreferredBufferTypes[] = {
     litert::TensorBufferType::kHostMemory,
     litert::TensorBufferType::kFastRpc,
     litert::TensorBufferType::kDmaBuf,
-#if MEDIAPIPE_METAL_ENABLED
-    litert::TensorBufferType::kMetalBufferPacked,
-#endif  // MEDIAPIPE_METAL_ENABLED
     litert::TensorBufferType::kGlBuffer,
     litert::TensorBufferType::kOpenClTextureFp16,
     litert::TensorBufferType::kOpenClBuffer,
@@ -224,32 +212,11 @@ absl::StatusOr<litert::HwAcceleratorSet> GetLiteRtHwAccelerators(
 absl::StatusOr<litert::Environment> InitializeLiteRtEnvironment(
     const InferenceCalculatorOptions::Delegate::LiteRt& options,
     const mediapipe::GlContext* gl_context,
-#if MEDIAPIPE_METAL_ENABLED
-    id<MTLCommandQueue> metal_command_queue, id<MTLDevice> metal_device,
-#endif  // MEDIAPIPE_METAL_ENABLED
 #if defined(__EMSCRIPTEN__)
     WebGpuService* webgpu_service,
 #endif  // __EMSCRIPTEN__
     LiteRtSystemHandles system_handles) {
   std::vector<litert::EnvironmentOptions::Option> environment_options;
-#if MEDIAPIPE_METAL_ENABLED
-  // NOTE: these are unretained pointers, so the caller must keep the queue and
-  // device alive for at least as long as the returned environment. The runner
-  // does so by retaining the command queue (see b/561616000).
-  if (metal_command_queue != nil) {
-    if (metal_device == nil) {
-      metal_device = metal_command_queue.device;
-    }
-    environment_options.push_back(litert::EnvironmentOptions::Option{
-        /*.tag=*/litert::EnvironmentOptions::Tag::kMetalCommandQueue,
-        /*.value=*/(__bridge void*)metal_command_queue,
-    });
-    environment_options.push_back(litert::EnvironmentOptions::Option{
-        /*.tag=*/litert::EnvironmentOptions::Tag::kMetalDevice,
-        /*.value=*/(__bridge void*)metal_device,
-    });
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
   if (options.has_npu()) {
     if (options.npu().has_compiler_plugin_library_path()) {
       environment_options.push_back(litert::EnvironmentOptions::Option{
@@ -340,29 +307,10 @@ InferenceRunnerLiteRt::Create(
 #if defined(__EMSCRIPTEN__)
     WebGpuService* webgpu_service,
 #endif  // __EMSCRIPTEN__
-#if MEDIAPIPE_METAL_ENABLED
-    void* metal_helper,
-#endif  // MEDIAPIPE_METAL_ENABLED
     std::optional<litert::Options> litert_options,
     LiteRtSystemHandles system_handles) {
-#if MEDIAPIPE_METAL_ENABLED
-  // Read everything we need out of the helper here, while the graph that
-  // created it (and therefore its GpuResources) is guaranteed to still be
-  // alive. The helper must not be retained beyond this function: see the
-  // comment on `metal_command_queue_`.
-  id<MTLCommandQueue> metal_command_queue = nil;
-  id<MTLDevice> metal_device = nil;
-  if (metal_helper != nullptr) {
-    MPPMetalHelper* helper = (__bridge MPPMetalHelper*)metal_helper;
-    metal_command_queue = helper.mtlCommandQueue;
-    metal_device = helper.mtlDevice ?: metal_command_queue.device;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
   ABSL_ASSIGN_OR_RETURN(auto environment, InitializeLiteRtEnvironment(
                                               options, gl_context.get(),
-#if MEDIAPIPE_METAL_ENABLED
-                                              metal_command_queue, metal_device,
-#endif  // MEDIAPIPE_METAL_ENABLED
 #if defined(__EMSCRIPTEN__)
                                               webgpu_service,
 #endif  // __EMSCRIPTEN__
@@ -488,16 +436,6 @@ InferenceRunnerLiteRt::Create(
             gpu_options.SetModelCacheKey(cache.model_cache_key().c_str()));
       }
       if (cache.has_cache_only_compiled_programs()) {
-#if MEDIAPIPE_METAL_ENABLED
-        if (metal_command_queue != nil &&
-            cache.cache_only_compiled_programs()) {
-          return absl::InvalidArgumentError(
-              "cache_only_compiled_programs (kernel caching) is not supported "
-              "for Metal backend. Use full model caching "
-              "(serialize_program_cache) "
-              "instead.");
-        }
-#endif  // MEDIAPIPE_METAL_ENABLED
         LITERT_RETURN_IF_ERROR(gpu_options.CacheCompiledProgramsOnly(
             cache.cache_only_compiled_programs()));
       }
@@ -631,22 +569,6 @@ InferenceRunnerLiteRt::Create(
       LITERT_RETURN_IF_ERROR(gpu_options.DisableShaderOptimization(
           options.gpu().vulkan().disable_shader_optimization()));
     }
-    if (options.gpu().has_metal()) {
-#ifdef __APPLE__
-      const auto& metal = options.gpu().metal();
-      if (metal.has_use_argument_buffers()) {
-        LITERT_RETURN_IF_ERROR(gpu_options.SetUseMetalArgumentBuffers(
-            metal.use_argument_buffers()));
-      }
-      if (metal.has_enable_residency_set()) {
-        LITERT_RETURN_IF_ERROR(
-            gpu_options.EnableMetalResidencySet(metal.enable_residency_set()));
-      }
-#else
-      return absl::InvalidArgumentError(
-          "LiteRt::Gpu::Metal options are only supported on Apple platforms.");
-#endif  // __APPLE__
-    }
   }
   if (accelerator & litert::HwAccelerators::kNpu) {
     if (options.npu().has_darwinn()) {
@@ -754,10 +676,6 @@ InferenceRunnerLiteRt::Create(
           run_async, enable_dynamic_resize, has_dynamic_dimension, use_npu,
           release_model_packet, signature_index, std::move(signature),
           std::move(input_output_tensor_names), std::move(feedback_manager)
-#if MEDIAPIPE_METAL_ENABLED
-                                                    ,
-          metal_command_queue
-#endif  // MEDIAPIPE_METAL_ENABLED
           ));
 
   runner->managed_input_buffers_.resize(num_inputs);
@@ -795,10 +713,6 @@ InferenceRunnerLiteRt::InferenceRunnerLiteRt(
     litert::SimpleSignature signature,
     InputOutputTensorNames input_output_tensor_names,
     std::unique_ptr<InferenceFeedbackManagerLiteRt> feedback_manager
-#if MEDIAPIPE_METAL_ENABLED
-    ,
-    id<MTLCommandQueue> metal_command_queue
-#endif  // MEDIAPIPE_METAL_ENABLED
     )
     : memory_manager_(memory_manager),
 #if defined(__EMSCRIPTEN__)
@@ -816,22 +730,9 @@ InferenceRunnerLiteRt::InferenceRunnerLiteRt(
       has_dynamic_dimension_(has_dynamic_dimension),
       input_output_tensor_names_(std::move(input_output_tensor_names)),
       feedback_manager_(std::move(feedback_manager)) {
-#if MEDIAPIPE_METAL_ENABLED
-  if (metal_command_queue != nil) {
-    metal_command_queue_ = (__bridge_retained void*)metal_command_queue;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
 }
 
 InferenceRunnerLiteRt::~InferenceRunnerLiteRt() {
-#if MEDIAPIPE_METAL_ENABLED
-  if (metal_command_buffer_) {
-    id<MTLCommandBuffer> command_buffer =
-        (__bridge_transfer id<MTLCommandBuffer>)metal_command_buffer_;
-    (void)command_buffer;
-    metal_command_buffer_ = nullptr;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
   absl::Status status = Close();
   if (!status.ok()) {
     ABSL_LOG(DFATAL) << "Failed to shut down InferenceRunnerLiteRt: " << status;
@@ -852,15 +753,6 @@ InferenceRunnerLiteRt::~InferenceRunnerLiteRt() {
   feedback_manager_.reset();
   compiled_model_.reset();
   environment_.reset();
-#if MEDIAPIPE_METAL_ENABLED
-  // Released last: `environment_` holds an unretained pointer to this queue.
-  if (metal_command_queue_) {
-    id<MTLCommandQueue> command_queue =
-        (__bridge_transfer id<MTLCommandQueue>)metal_command_queue_;
-    (void)command_queue;
-    metal_command_queue_ = nullptr;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
 }
 
 absl::Status InferenceRunnerLiteRt::Close() {
@@ -1012,143 +904,6 @@ InferenceRunnerLiteRt::CreateWebGpuOutputTensorBufferFromMpTensor(
 }
 #endif  // defined(__EMSCRIPTEN__)
 
-#if MEDIAPIPE_METAL_ENABLED
-
-id<MTLCommandBuffer> InferenceRunnerLiteRt::GetMetalCommandBuffer() {
-  id<MTLCommandBuffer> command_buffer =
-      (__bridge id<MTLCommandBuffer>)metal_command_buffer_;
-  if (command_buffer) {
-    return command_buffer;
-  }
-
-  // Create the command buffer from the queue we retained at construction time.
-  // Do NOT route this through MPPMetalHelper: this runner may outlive the
-  // graph whose GpuResources the helper points at (b/561616000).
-  id<MTLCommandQueue> command_queue =
-      (__bridge id<MTLCommandQueue>)metal_command_queue_;
-  if (command_queue) {
-    command_buffer = [command_queue commandBuffer];
-    metal_command_buffer_ = (__bridge_retained void*)command_buffer;
-  }
-  return command_buffer;
-}
-
-absl::StatusOr<const Tensor*>
-InferenceRunnerLiteRt::ConvertTensorChannelsIfNeeded(
-    const Tensor& mp_input_tensor, const litert::RankedTensorType& tensor_type,
-    InferenceRunContext& ctx) {
-  auto model_dims = tensor_type.Layout().Dimensions();
-  const auto& mp_dims = mp_input_tensor.shape().dims;
-
-  int model_h = 1, model_w = 1, model_c = 1, model_n = 1;
-  if (model_dims.size() == 4) {
-    model_n = model_dims[0];
-    model_h = model_dims[1];
-    model_w = model_dims[2];
-    model_c = model_dims[3];
-  } else if (model_dims.size() == 3) {
-    model_h = model_dims[0];
-    model_w = model_dims[1];
-    model_c = model_dims[2];
-  }
-
-  int mp_h = 1, mp_w = 1, mp_c = 1, mp_n = 1;
-  if (mp_dims.size() == 4) {
-    mp_n = mp_dims[0];
-    mp_h = mp_dims[1];
-    mp_w = mp_dims[2];
-    mp_c = mp_dims[3];
-  } else if (mp_dims.size() == 3) {
-    mp_h = mp_dims[0];
-    mp_w = mp_dims[1];
-    mp_c = mp_dims[2];
-  }
-
-  if (model_c != mp_c && model_h == mp_h && model_w == mp_w) {
-    auto converted_tensor = std::make_unique<Tensor>(
-        mp_input_tensor.element_type(),
-        Tensor::Shape{mp_n, mp_h, mp_w, model_c}, memory_manager_);
-
-    auto src_view = mp_input_tensor.GetCpuReadView();
-    auto dst_view = converted_tensor->GetCpuWriteView();
-
-    int num_pixels = mp_n * mp_h * mp_w;
-    size_t element_size = mp_input_tensor.element_size();
-    size_t pixel_size_src = mp_c * element_size;
-    size_t pixel_size_dst = model_c * element_size;
-    const uint8_t* src_ptr =
-        reinterpret_cast<const uint8_t*>(src_view.buffer<void>());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_view.buffer<void>());
-
-    size_t bytes_to_copy = std::min(mp_c, model_c) * element_size;
-
-    for (int p = 0; p < num_pixels; ++p) {
-      // Copy matching channels
-      std::memcpy(dst_ptr + p * pixel_size_dst, src_ptr + p * pixel_size_src,
-                  bytes_to_copy);
-
-      // Pad with zeros if model expects more channels
-      if (model_c > mp_c) {
-        std::memset(dst_ptr + p * pixel_size_dst + bytes_to_copy, 0,
-                    (model_c - mp_c) * element_size);
-      }
-    }
-
-    const Tensor* result = converted_tensor.get();
-    ctx.temporary_tensors.push_back(std::move(converted_tensor));
-    return result;
-  }
-
-  return &mp_input_tensor;
-}
-
-absl::StatusOr<litert::TensorBuffer>
-InferenceRunnerLiteRt::CreateMetalInputTensorBufferFromMpTensor(
-    const Tensor& mp_input_tensor, const litert::RankedTensorType& tensor_type,
-    InferenceRunContext& ctx) {
-  id<MTLCommandBuffer> command_buffer = GetMetalCommandBuffer();
-  if (!command_buffer) {
-    return absl::InternalError("Failed to create metal command buffer");
-  }
-
-  const Tensor* tensor_to_use = &mp_input_tensor;
-
-  auto mtl_input_view =
-      MtlBufferView::GetReadView(*tensor_to_use, command_buffer);
-
-  LITERT_ASSIGN_OR_RETURN(
-      auto litert_buffer,
-      litert::TensorBuffer::CreateFromMetalBuffer(
-          *environment_, tensor_type,
-          litert::TensorBufferType::kMetalBufferPacked,
-          (__bridge void*)mtl_input_view.buffer(), tensor_to_use->bytes()));
-
-  ctx.active_input_views.push_back(std::move(mtl_input_view));
-  return litert_buffer;
-}
-
-absl::StatusOr<litert::TensorBuffer>
-InferenceRunnerLiteRt::CreateMetalOutputTensorBufferFromMpTensor(
-    const Tensor& mp_output_tensor, const litert::RankedTensorType& tensor_type,
-    std::vector<InferenceRunnerLiteRt::MpTensorWriteView>&
-        mp_output_tensor_views) {
-  id<MTLCommandBuffer> command_buffer = GetMetalCommandBuffer();
-  if (!command_buffer) {
-    return absl::InternalError("Failed to create metal command buffer");
-  }
-  auto mtl_output_view =
-      MtlBufferView::GetWriteView(mp_output_tensor, command_buffer);
-
-  LITERT_ASSIGN_OR_RETURN(
-      auto litert_buffer,
-      litert::TensorBuffer::CreateFromMetalBuffer(
-          *environment_, tensor_type,
-          litert::TensorBufferType::kMetalBufferPacked,
-          (__bridge void*)mtl_output_view.buffer(), mp_output_tensor.bytes()));
-  mp_output_tensor_views.push_back(std::move(mtl_output_view));
-  return litert_buffer;
-}
-#endif  // MEDIAPIPE_METAL_ENABLED
 
 
 absl::StatusOr<litert::TensorBuffer>
@@ -1217,10 +972,6 @@ InferenceRunnerLiteRt::CreateInputTensorBufferFromMpTensor(
     case litert::TensorBufferType::kHostMemory:
       return CreateCpuInputTensorBufferFromMpTensor(
           tensor, tensor_type, ctx.active_input_views, ctx.temporary_tensors);
-#if MEDIAPIPE_METAL_ENABLED
-    case litert::TensorBufferType::kMetalBufferPacked:
-      return CreateMetalInputTensorBufferFromMpTensor(tensor, tensor_type, ctx);
-#endif  // MEDIAPIPE_METAL_ENABLED
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
     case litert::TensorBufferType::kGlBuffer:
       return CreateGlInputTensorBufferFromMpTensor(tensor, tensor_type,
@@ -1343,13 +1094,6 @@ absl::Status InferenceRunnerLiteRt::PrepareInputBuffers(
     LITERT_ASSIGN_OR_RETURN(const litert::RankedTensorType model_tensor_type,
                             signature.InputTensorType(i));
 
-#if MEDIAPIPE_METAL_ENABLED
-    if (buffer_type == litert::TensorBufferType::kMetalBufferPacked) {
-      ABSL_ASSIGN_OR_RETURN(
-          tensor_to_use, ConvertTensorChannelsIfNeeded(*tensor_to_use,
-                                                       model_tensor_type, ctx));
-    }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
     // Note: CreateInputRankedTensorType() may refresh
     // cached_input_buffer_requirements_[i], so it must be read after this call.
@@ -1449,11 +1193,6 @@ InferenceRunnerLiteRt::CreateOutputTensorBufferFromMpTensor(
     case litert::TensorBufferType::kHostMemory:
       return CreateCpuOutputTensorBufferFromMpTensor(tensor, tensor_type,
                                                      ctx.active_output_views);
-#if MEDIAPIPE_METAL_ENABLED
-    case litert::TensorBufferType::kMetalBufferPacked:
-      return CreateMetalOutputTensorBufferFromMpTensor(tensor, tensor_type,
-                                                       ctx.active_output_views);
-#endif  // MEDIAPIPE_METAL_ENABLED
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
     case litert::TensorBufferType::kGlBuffer:
       return CreateGlOutputTensorBufferFromMpTensor(tensor, tensor_type,
@@ -1559,33 +1298,9 @@ absl::StatusOr<std::vector<Tensor>> InferenceRunnerLiteRt::Run(
   InferenceRunContext ctx;
 
 
-#if MEDIAPIPE_METAL_ENABLED
-  auto cleanup_command_buffer = absl::MakeCleanup([this]() {
-    if (metal_command_buffer_) {
-      id<MTLCommandBuffer> command_buffer =
-          (__bridge_transfer id<MTLCommandBuffer>)metal_command_buffer_;
-      (void)command_buffer;
-      metal_command_buffer_ = nullptr;
-    }
-  });
-  if (metal_command_buffer_) {
-    id<MTLCommandBuffer> command_buffer =
-        (__bridge_transfer id<MTLCommandBuffer>)metal_command_buffer_;
-    (void)command_buffer;
-    metal_command_buffer_ = nullptr;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   ABSL_RETURN_IF_ERROR(PrepareInputBuffers(signature_, tensor_span, ctx));
 
-#if MEDIAPIPE_METAL_ENABLED
-  id<MTLCommandBuffer> input_command_buffer = nil;
-  if (metal_command_buffer_) {
-    input_command_buffer =
-        (__bridge_transfer id<MTLCommandBuffer>)metal_command_buffer_;
-    metal_command_buffer_ = nullptr;
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   // Get final output tensor layouts from the compiled model.
   LITERT_ASSIGN_OR_RETURN(
@@ -1600,19 +1315,6 @@ absl::StatusOr<std::vector<Tensor>> InferenceRunnerLiteRt::Run(
   ABSL_RETURN_IF_ERROR(PrepareOutputBuffers(signature_, output_tensor_layouts,
                                             mp_output_tensors, ctx));
 
-#if MEDIAPIPE_METAL_ENABLED
-  id<MTLCommandBuffer> output_command_buffer = nil;
-  if (metal_command_buffer_) {
-    output_command_buffer =
-        (__bridge_transfer id<MTLCommandBuffer>)metal_command_buffer_;
-    metal_command_buffer_ = nullptr;
-  }
-
-  if (input_command_buffer) {
-    [input_command_buffer commit];
-    [input_command_buffer waitUntilScheduled];
-  }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
   // Execute model.
   if (run_async_) {
@@ -1622,15 +1324,6 @@ absl::StatusOr<std::vector<Tensor>> InferenceRunnerLiteRt::Run(
     LITERT_RETURN_IF_ERROR(compiled_model_->Run(
         signature_index_, ctx.litert_inputs, ctx.litert_outputs));
 
-#if MEDIAPIPE_METAL_ENABLED
-    if (output_command_buffer) {
-      [output_command_buffer commit];
-      // The below call is found (manual testing) to resolve flickering issues
-      // for some use cases where multiple Metal calculators are involved. See
-      // b/302372363.
-      [output_command_buffer waitUntilScheduled];
-    }
-#endif  // MEDIAPIPE_METAL_ENABLED
 
     ctx.active_output_views.clear();
     ctx.active_input_views.clear();

@@ -156,19 +156,4 @@ cc_binary(
     deps = [":hand_landmarker_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/hand_landmarker:libhand_landmarker.dylib
-cc_binary(
-    name = "libhand_landmarker.dylib",
-    linkopts = [
-        "-Wl,-install_name,libhand_landmarker.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":hand_landmarker_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

@@ -41,13 +41,7 @@
 #include "cv-cuda-pipeline/gpu/gpu_buffer_format.h"
 #include "cv-cuda-pipeline/gpu/multi_pool.h"
 
-#if MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/gpu/metal_shared_resources.h"
-#endif  // MEDIAPIPE_METAL_ENABLED
 
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#include "cv-cuda-pipeline/gpu/gpu_buffer_storage_cv_pixel_buffer.h"
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
 namespace mediapipe {
 
@@ -62,9 +56,7 @@ std::string GetExecutorNameFromContextKey(const std::string& context_key) {
 
 }  // namespace
 
-#if __APPLE__
-static constexpr bool kGlContextUseDedicatedThread = false;
-#elif defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
 // Since we're forcing single-threaded execution, we just run everything
 // in-place.
 static constexpr bool kGlContextUseDedicatedThread = false;
@@ -73,7 +65,7 @@ static constexpr bool kGlContextUseDedicatedThread = false;
 // the current GL context on a random thread. For now let's keep the
 // single-thread approach on Linux as a workaround.
 static constexpr bool kGlContextUseDedicatedThread = true;
-#endif  // __APPLE__
+#endif
 
 // If true, use a single GL context shared by all calculators.
 // If false, create a separate context per calculator.
@@ -156,35 +148,14 @@ GpuResources::GpuResources(std::shared_ptr<GlContext> gl_context,
                         }
                         delete map;
                       }),
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-      texture_caches_(std::make_shared<CvTextureCacheManager>()),
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#if MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
-      gpu_buffer_pool_(
-          [tc = texture_caches_](const internal::GpuBufferSpec& spec,
-                                 const MultiPoolOptions& options) {
-            return CvPixelBufferPoolWrapper::Create(spec, options, tc.get());
-          },
-          gpu_buffer_pool_options ? *gpu_buffer_pool_options
-                                  : kDefaultMultiPoolOptions)
-#else   // MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
       gpu_buffer_pool_(gpu_buffer_pool_options ? *gpu_buffer_pool_options
                                                : kDefaultMultiPoolOptions)
-#endif  // MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
 {
   gl_key_context_->insert({SharedContextKey(), shared_gl_context_});
   const std::string executor_name =
       GetExecutorNameFromContextKey(SharedContextKey());
   named_executors_[executor_name] =
       std::make_shared<GlContextExecutor>(shared_gl_context_.get());
-#if __APPLE__
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  texture_caches_->RegisterTextureCache(shared_gl_context_->cv_texture_cache());
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#if MEDIAPIPE_METAL_ENABLED
-  metal_shared_ = std::make_unique<MetalSharedResources>();
-#endif  // MEDIAPIPE_METAL_ENABLED
-#endif  // __APPLE__
 }
 
 absl::StatusOr<std::shared_ptr<Executor>> GpuResources::GetDefaultGpuExecutor()
@@ -213,18 +184,6 @@ GpuResources::~GpuResources() {
     ABSL_LOG_IF(ERROR, !status.ok())
         << "Failed to flush GlContext jobs: " << status;
   }
-#if __APPLE__
-  // Note: on Apple platforms, this object contains Objective-C objects.
-  // The destructor will release them, but ARC must be on.
-#if !__has_feature(objc_arc)
-#error This file must be built with ARC.
-#endif
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  for (auto& kv : *gl_key_context_) {
-    texture_caches_->UnregisterTextureCache(kv.second->cv_texture_cache());
-  }
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#endif  // __APPLE__
 }
 
 ABSL_CONST_INIT extern const GraphService<GpuResources> kGpuService;
@@ -303,16 +262,12 @@ GlContext::StatusOrGlContext GpuResources::GetOrCreateGlContext(
         std::shared_ptr<GlContext> new_context,
         GlContext::Create(*shared_gl_context_, kGlContextUseDedicatedThread));
     it = gl_key_context_->emplace(key, new_context).first;
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-    texture_caches_->RegisterTextureCache(it->second->cv_texture_cache());
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   }
   return it->second;
 }
 
 GpuSharedData::GpuSharedData() : GpuSharedData(kPlatformGlContextNone) {}
 
-#if !MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
 static std::shared_ptr<GlTextureBuffer> GetGlTextureBufferFromPool(
     int width, int height, GpuBufferFormat format) {
   std::shared_ptr<GlTextureBuffer> texture_buffer;
@@ -321,9 +276,6 @@ static std::shared_ptr<GlTextureBuffer> GetGlTextureBufferFromPool(
   if (cc && cc->Service(kGpuService).IsAvailable()) {
     GpuBufferMultiPool* pool =
         &cc->Service(kGpuService).GetObject().gpu_buffer_pool();
-    // Note that the "gpu_buffer_pool" serves GlTextureBuffers wherever
-    // MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER is 0 (non-Apple platforms
-    // and macOS). TODO: refactor into storage pools.
     auto texture_buffer_from_pool = pool->GetBuffer(width, height, format);
     ABSL_CHECK_OK(texture_buffer_from_pool);
     texture_buffer =
@@ -335,19 +287,11 @@ static std::shared_ptr<GlTextureBuffer> GetGlTextureBufferFromPool(
 }
 
 static auto kGlTextureBufferPoolRegistration = [] {
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  // On macOS GpuBufferStorageCvPixelBuffer is compiled in and also registers a
-  // factory for GlTextureView. The registry is last-wins, so register it first
-  // to make the pool-backed GlTextureBuffer factory below win deterministically
-  // rather than by static initialization order across translation units.
-  GpuBufferStorageCvPixelBuffer::RegisterOnce();
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   // Ensure that the GlTextureBuffer's own factory is already registered, so we
   // can override it.
   GlTextureBuffer::RegisterOnce();
   return internal::GpuBufferStorageRegistry::Get()
       .RegisterFactory<GlTextureBuffer>(GetGlTextureBufferFromPool);
 }();
-#endif  // !MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
 
 }  // namespace mediapipe

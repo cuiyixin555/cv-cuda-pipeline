@@ -160,19 +160,4 @@ cc_binary(
     deps = [":image_segmenter_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/image_segmenter:libimage_segmenter.dylib
-cc_binary(
-    name = "libimage_segmenter.dylib",
-    linkopts = [
-        "-Wl,-install_name,libimage_segmenter.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":image_segmenter_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

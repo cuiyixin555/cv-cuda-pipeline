@@ -32,17 +32,8 @@
 // storage-specific headers here. See WebGpuTextureBuffer/View for an example
 // of adding a new storage and view.
 
-#if defined(__APPLE__)
-#include <CoreVideo/CoreVideo.h>
 
-#include "cv-cuda-pipeline/objc/CFHolder.h"
-#endif  // defined(__APPLE__)
-
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#include "cv-cuda-pipeline/gpu/gpu_buffer_storage_cv_pixel_buffer.h"
-#else
 #include "cv-cuda-pipeline/gpu/gl_texture_buffer.h"
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 #endif  // MEDIAPIPE_DISABLE_GPU
 
 namespace mediapipe {
@@ -78,15 +69,6 @@ class GpuBuffer {
     holder_ = std::make_shared<StorageHolder>(std::move(storage));
   }
 
-#if !MEDIAPIPE_DISABLE_GPU && MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  // This is used to support backward-compatible construction of GpuBuffer from
-  // some platform-specific types without having to make those types visible in
-  // this header.
-  template <class T, class = std::void_t<decltype(internal::AsGpuBufferStorage(
-                         std::declval<T>()))>>
-  explicit GpuBuffer(T&& storage_convertible)
-      : GpuBuffer(internal::AsGpuBufferStorage(storage_convertible)) {}
-#endif  // !MEDIAPIPE_DISABLE_GPU && MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
   int width() const { return holder_ ? holder_->width() : 0; }
   int height() const { return holder_ ? holder_->height() : 0; }
@@ -194,9 +176,6 @@ class GpuBuffer {
 
   std::shared_ptr<StorageHolder> holder_;
 
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-  friend CVPixelBufferRef GetCVPixelBufferRef(const GpuBuffer& buffer);
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 };
 
 inline bool GpuBuffer::operator==(std::nullptr_t other) const {
@@ -214,9 +193,6 @@ inline GpuBuffer& GpuBuffer::operator=(std::nullptr_t other) {
 
 // Note: these constructors and accessors for specific storage types exist
 // for backwards compatibility reasons. Do not add new ones.
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-CVPixelBufferRef GetCVPixelBufferRef(const GpuBuffer& buffer);
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
 }  // namespace mediapipe
 

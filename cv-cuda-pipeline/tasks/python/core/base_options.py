@@ -36,20 +36,17 @@ class _HostSystem(enum.IntEnum):
   Attributes:
     HOST_SYSTEM_UNKNOWN: Unknown host system.
     HOST_SYSTEM_LINUX: Linux host system.
-    HOST_SYSTEM_MAC: MacOS host system.
     HOST_SYSTEM_WINDOWS: Windows host system.
   """
 
   HOST_SYSTEM_UNKNOWN = 0
   HOST_SYSTEM_LINUX = 1
-  HOST_SYSTEM_MAC = 2
   HOST_SYSTEM_WINDOWS = 3
 
 
 
 
 _HOST_SYSTEM_BY_PLATFORM = types.MappingProxyType({
-    'Darwin': _HostSystem.HOST_SYSTEM_MAC,
     'Windows': _HostSystem.HOST_SYSTEM_WINDOWS,
     'Linux': _HostSystem.HOST_SYSTEM_LINUX,
 })

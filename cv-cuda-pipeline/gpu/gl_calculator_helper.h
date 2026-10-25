@@ -113,9 +113,7 @@ class GlCalculatorHelper {
   }
 
   // Use CreateSourceTexture and CreateDestinationTexture to set up textures
-  // for input and output frames. They are not just a convenience; on platforms
-  // where it is supported (Apple platforms, for now) they take advantage of memory sharing
-  // between the CPU and GPU, avoiding memory copies.
+  // for input and output frames.
 
   // Gives access to an input frame as an OpenGL texture for reading (sampling).
   //

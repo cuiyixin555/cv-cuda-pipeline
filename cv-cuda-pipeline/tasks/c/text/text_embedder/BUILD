@@ -77,22 +77,6 @@ cc_binary(
     deps = [":text_embedder_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/text/text_embedder:libtext_embedder.dylib
-cc_binary(
-    name = "libtext_embedder.dylib",
-    linkopts = [
-        "-Wl,-install_name,libtext_embedder.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":text_embedder_lib"],
-)
 
 cc_test(
     name = "text_embedder_test",

@@ -104,7 +104,6 @@ TEST(BaseOptionsConverterTest, ToMpHostEnvironmentConvertsValues) {
 TEST(BaseOptionsConverterTest, ToMpHostSystemConvertsValues) {
   EXPECT_EQ(ToMpHostSystem(0), MP_HOST_SYSTEM_UNKNOWN);
   EXPECT_EQ(ToMpHostSystem(1), MP_HOST_SYSTEM_LINUX);
-  EXPECT_EQ(ToMpHostSystem(2), MP_HOST_SYSTEM_MAC);
   EXPECT_EQ(ToMpHostSystem(3), MP_HOST_SYSTEM_WINDOWS);
 }
 

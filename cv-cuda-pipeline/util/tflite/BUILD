@@ -103,17 +103,9 @@ cc_library_with_tflite(
 
 cc_library(
     name = "tflite_gpu_runner",
-    srcs = select({
-        "//cv-cuda-pipeline:macos": [],
-        "//conditions:default": ["tflite_gpu_runner.cc"],
-    }),
-    hdrs = select({
-        "//cv-cuda-pipeline:macos": [],
-        "//conditions:default": ["tflite_gpu_runner.h"],
-    }),
-    deps = select({
-               "//cv-cuda-pipeline:macos": [],
-               "//conditions:default": [
+    srcs = ["tflite_gpu_runner.cc"],
+    hdrs = ["tflite_gpu_runner.h"],
+    deps = [
                    "//cv-cuda-pipeline/framework/port:logging",
                    "//cv-cuda-pipeline/framework/port:ret_check",
                    "//cv-cuda-pipeline/framework/port:status",
@@ -124,8 +116,7 @@ cc_library(
                    "@litert//tflite/delegates/gpu/common:model",
                    "@litert//tflite/delegates/gpu/common:model_builder",
                    "@litert//tflite/delegates/gpu/gl:api2",
-               ],
-           }) +
+               ] +
            select({
                "//conditions:default": [],
            }) + [

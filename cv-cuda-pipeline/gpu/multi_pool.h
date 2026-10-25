@@ -35,7 +35,7 @@ struct MultiPoolOptions {
   // oldest BufferSpec will be dropped.
   int max_pool_count = 10;
   // Time in seconds after which an inactive buffer can be dropped from the
-  // pool. Currently only used with CVPixelBufferPool.
+  // pool.
   float max_inactive_buffer_age = 0.25;
   // Skip allocating a buffer pool until at least this many requests have been
   // made for a given BufferSpec.

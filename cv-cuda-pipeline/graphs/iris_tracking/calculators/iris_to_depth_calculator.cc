@@ -137,14 +137,8 @@ REGISTER_CALCULATOR(IrisToDepthCalculator);
 absl::Status IrisToDepthCalculator::Open(CalculatorContext* cc) {
   cc->SetOffset(TimestampDiff(0));
   if (cc->InputSidePackets().HasTag(kFocalLengthPixelTag)) {
-#if defined(__APPLE__)
-    focal_length_pixels_ = *cc->InputSidePackets()
-                                .Tag(kFocalLengthPixelTag)
-                                .Get<std::unique_ptr<float>>();
-#else
     focal_length_pixels_ =
         cc->InputSidePackets().Tag(kFocalLengthPixelTag).Get<float>();
-#endif
     compute_depth_from_iris_ = true;
   } else if (cc->InputSidePackets().HasTag(kImageFilePropertiesTag)) {
     const auto& properties = cc->InputSidePackets()
@@ -181,13 +175,6 @@ absl::Status IrisToDepthCalculator::Process(CalculatorContext* cc) {
   const auto left_iris_size = CalculateIrisDiameter(*left_iris, image_size);
   const auto right_iris_size = CalculateIrisDiameter(*right_iris, image_size);
 
-#if defined(__APPLE__)
-  if (cc->InputSidePackets().HasTag(kFocalLengthPixelTag)) {
-    focal_length_pixels_ = *cc->InputSidePackets()
-                                .Tag(kFocalLengthPixelTag)
-                                .Get<std::unique_ptr<float>>();
-  }
-#endif
 
   if (compute_depth_from_iris_ && focal_length_pixels_ > 0) {
     const auto left_depth =

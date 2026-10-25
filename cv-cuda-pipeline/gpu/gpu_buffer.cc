@@ -9,9 +9,6 @@
 #include "absl/strings/str_join.h"
 #include "cv-cuda-pipeline/framework/port/logging.h"
 
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#include "cv-cuda-pipeline/objc/util.h"
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
 namespace mediapipe {
 
@@ -136,17 +133,5 @@ internal::GpuBufferStorage& GpuBuffer::GetStorageForViewOrDie(
   return *chosen_storage;
 }
 
-#if !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-CVPixelBufferRef GetCVPixelBufferRef(const GpuBuffer& buffer) {
-  if (buffer.GetStorageForView(
-          kTypeId<internal::ViewProvider<CVPixelBufferRef>>,
-          /*for_writing=*/false) != nullptr) {
-    return *buffer.GetReadView<CVPixelBufferRef>();
-  }
-  return nullptr;
-}
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-#endif  // !MEDIAPIPE_DISABLE_GPU
 
 }  // namespace mediapipe

@@ -38,9 +38,6 @@
 #include "tflite/model.h"
 #include "tflite/portable_type_to_tflitetype.h"
 
-#ifdef __APPLE__
-#include <CoreFoundation/CoreFoundation.h>
-#endif  // defined(__APPLE__)
 
 namespace mediapipe {
 

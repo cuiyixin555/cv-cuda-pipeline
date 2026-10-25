@@ -386,11 +386,7 @@ cc_library(
         "//conditions:default": [
             "//cv-cuda-pipeline/gpu:gl_texture_buffer",
         ],
-    }) + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-        ],
-    }),
+    }) + [],
 )
 
 cc_library(
@@ -413,12 +409,7 @@ cc_library(
             "//cv-cuda-pipeline/gpu:gpu_buffer",
         ],
         "//cv-cuda-pipeline/gpu:disable_gpu": [],
-    }) + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:apple": [
-            "//cv-cuda-pipeline/gpu:pixel_buffer_pool_util",
-        ],
-    }),
+    }) + [],
 )
 
 cc_library(
@@ -477,22 +468,9 @@ cc_library(
     hdrs = [
         "tensor.h",
         "//cv-cuda-pipeline/framework/formats/tensor:internal.h",
-    ] + select({
-        "//cv-cuda-pipeline:apple": ["tensor_mtl_buffer_view.h"],
-        "//conditions:default": [],
-    }),
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    ] + [],
+    copts = [],
     linkopts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-framework CoreVideo",
-            "-framework MetalKit",
-        ],
         "//conditions:default": [],
         "//cv-cuda-pipeline/gpu/webgpu:use_webgpu_emscripten": ["-sUSE_WEBGPU=1"],
     }),

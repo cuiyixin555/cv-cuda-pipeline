@@ -446,7 +446,6 @@ cc_library(
     hdrs = ["threadpool.h"],
     deps = select({
         "//conditions:default": [":threadpool_impl_default_to_google"],
-        "//cv-cuda-pipeline:apple": [":threadpool_impl_default_to_mediapipe"],
         "//cv-cuda-pipeline:emscripten": [":threadpool_impl_default_to_mediapipe"],
     }),
 )

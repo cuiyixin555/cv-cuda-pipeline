@@ -53,10 +53,7 @@
 #if !MEDIAPIPE_DISABLE_GPU
 #include "cv-cuda-pipeline/gpu/gpu_buffer.h"
 
-#if MEDIAPIPE_METAL_ENABLED
-#include "cv-cuda-pipeline/calculators/tensor/image_to_tensor_converter_metal.h"
-#include "cv-cuda-pipeline/gpu/MPPMetalHelper.h"
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 #include "cv-cuda-pipeline/calculators/tensor/image_to_tensor_converter_gl_buffer.h"
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #include "cv-cuda-pipeline/gpu/gpu_service.h"
@@ -69,7 +66,7 @@
 #include "cv-cuda-pipeline/gpu/webgpu/webgpu_service.h"
 #include "cv-cuda-pipeline/gpu/webgpu/webgpu_texture_buffer.h"
 #endif  // MEDIAPIPE_USE_WEBGPU
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
 namespace mediapipe {
@@ -94,15 +91,10 @@ class ImageToTensorNodeImpl
           "GPU processing is disabled in build flags");
     }
 #else  // !MEDIAPIPE_DISABLE_GPU
-#if MEDIAPIPE_METAL_ENABLED
-    ABSL_RETURN_IF_ERROR([MPPMetalHelper updateContract:&cc.GetGenericContract()
-                                   requestGpuAsOptional:true]);
-#else
     cc.UseService(kGpuService).Optional();
 #if MEDIAPIPE_USE_WEBGPU
     cc.UseService(kWebGpuService).Optional();
 #endif  // MEDIAPIPE_USE_WEBGPU
-#endif  // MEDIAPIPE_METAL_ENABLED
 #endif  // MEDIAPIPE_DISABLE_GPU
 
     cc.UseService(kMemoryManagerService).Optional();
@@ -221,11 +213,7 @@ class ImageToTensorNodeImpl
             "support quantization.");
       }
       if (!gpu_converter_) {
-#if MEDIAPIPE_METAL_ENABLED
-        ABSL_ASSIGN_OR_RETURN(
-            gpu_converter_,
-            CreateMetalConverter(cc, GetBorderMode(options_.border_mode())));
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
         ABSL_ASSIGN_OR_RETURN(bool input_starts_at_bottom,
                               IsGpuOriginAtBottom(options_.gpu_origin()));
         ABSL_ASSIGN_OR_RETURN(gpu_converter_,
@@ -253,7 +241,7 @@ class ImageToTensorNodeImpl
           return absl::UnimplementedError(
               "ImageToTensorConverter for the input GPU image is unavailable.");
         }
-#endif  // MEDIAPIPE_METAL_ENABLED
+#endif
       }
 #endif  // MEDIAPIPE_DISABLE_GPU
     } else {

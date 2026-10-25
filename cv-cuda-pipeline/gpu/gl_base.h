@@ -21,36 +21,6 @@
 #include <emscripten/html5.h>
 #endif  // defined(__EMSCRIPTEN__)
 
-#if defined(__APPLE__)
-
-#include <TargetConditionals.h>
-
-#if TARGET_OS_OSX
-
-#define HAS_NSGL 1
-
-#include <OpenGL/OpenGL.h>
-
-#if CGL_VERSION_1_3
-#include <OpenGL/gl3.h>
-#include <OpenGL/gl3ext.h>
-#else
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
-#endif  // CGL_VERSION_1_3
-
-#else
-
-#define HAS_EAGL 1
-
-#include <OpenGLES/ES2/gl.h>
-#include <OpenGLES/ES2/glext.h>
-#include <OpenGLES/ES3/gl.h>
-#include <OpenGLES/ES3/glext.h>
-
-#endif  // TARGET_OS_OSX
-
-#else
 
 #define HAS_EGL 1
 
@@ -70,7 +40,6 @@
 #undef Bool
 #undef Success
 
-#endif  // defined(__APPLE__)
 
 namespace mediapipe {
 

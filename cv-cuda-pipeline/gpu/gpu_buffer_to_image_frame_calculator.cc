@@ -26,9 +26,6 @@
 #include "cv-cuda-pipeline/gpu/gpu_buffer.h"
 #include "cv-cuda-pipeline/gpu/gpu_buffer_format.h"
 
-#ifdef __APPLE__
-#include "cv-cuda-pipeline/objc/util.h"
-#endif
 
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 
@@ -46,9 +43,7 @@ class GpuBufferToImageFrameCalculator
       CalculatorContext<GpuBufferToImageFrameNode>& cc) override;
 
  private:
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   GlCalculatorHelper helper_;
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 };
 
 /* static */
@@ -63,9 +58,7 @@ absl::Status GpuBufferToImageFrameCalculator::UpdateContract(
 
 absl::Status GpuBufferToImageFrameCalculator::Open(
     CalculatorContext<GpuBufferToImageFrameNode>& cc) {
-#if !MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   ABSL_RETURN_IF_ERROR(helper_.Open(&cc.GetGenericContext()));
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
   return absl::OkStatus();
 }
 
@@ -78,11 +71,6 @@ absl::Status GpuBufferToImageFrameCalculator::Process(
 
   if (cc.in.Has<GpuBuffer>()) {
     const auto& input = cc.in.GetOrDie<GpuBuffer>();
-#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
-    std::unique_ptr<ImageFrame> frame =
-        CreateImageFrameForCVPixelBuffer(GetCVPixelBufferRef(input));
-    cc.out.Send(std::move(frame));
-#else
     helper_.RunInGlContext([this, &input, &cc]() {
       auto src = helper_.CreateSourceTexture(input);
       auto frame = std::make_unique<ImageFrame>(
@@ -96,7 +84,6 @@ absl::Status GpuBufferToImageFrameCalculator::Process(
       cc.out.Send(std::move(frame));
       src.Release();
     });
-#endif  // MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
 
     return absl::OkStatus();
   }

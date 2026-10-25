@@ -65,7 +65,7 @@ message InferenceCalculatorOptions {
       optional bool allow_precision_loss = 3;
     }
     // Delegate to run GPU inference depending on the device.
-    // (Can use OpenGl, OpenCl, Metal depending on the device.)
+    // (Can use OpenGL or OpenCL depending on the device.)
     message Gpu {
       reserved 2;
       // Experimental, Linux only. Use TFLite GPU delegate API2 for
@@ -268,9 +268,7 @@ message InferenceCalculatorOptions {
           optional string model_cache_key = 3;
           // Only takes effect when serialize_program_cache = true.
           // If true, only compiled GPU shader/kernel programs will be cached.
-          // Supported for OpenCL and WebGPU backends; NOT supported for Metal
-          // (use full model caching serialize_program_cache = true with
-          // cache_only_compiled_programs = false for Metal).
+          // Supported for OpenCL and WebGPU backends.
           // If false, full GPU model graph and serialized data will be cached.
           optional bool cache_only_compiled_programs = 4 [default = false];
           // File descriptor to read and write the program cache from. If set,
@@ -334,7 +332,7 @@ message InferenceCalculatorOptions {
           // The accelerator picks the fastest storage type for the device.
           BUFFER_STORAGE_TYPE_UNSPECIFIED = 0;
           // Forces buffer storage. On devices which would default to
-          // TEXTURE_2D (non-Apple devices) this reduces memory consumption at
+          // TEXTURE_2D this reduces memory consumption at
           // the cost of latency.
           BUFFER_STORAGE_TYPE_BUFFER = 1;
           BUFFER_STORAGE_TYPE_TEXTURE_2D = 2;
@@ -414,17 +412,8 @@ message InferenceCalculatorOptions {
         }
         optional Vulkan vulkan = 30;
 
-        message Metal {
-          // If true, Metal argument buffers are used, which reduces the number
-          // of buffers bound to the argument table. This can be required for
-          // models (e.g. some LLMs) which exhaust the available buffer binding
-          // slots. Requires a Tier 2 GPU.
-          optional bool use_argument_buffers = 1;
-          // If true, MTLResidencySet is used to prevent memory swapping.
-          // Requires macOS 15.0+.
-          optional bool enable_residency_set = 2;
-        }
-        optional Metal metal = 31;
+        reserved 31;
+        reserved "metal";
       }
       optional Gpu gpu = 9;
 

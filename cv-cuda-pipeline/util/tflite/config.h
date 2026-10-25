@@ -18,7 +18,7 @@
 #include "cv-cuda-pipeline/framework/calculator_framework.h"
 
 // MediaPipe code should use the following defines to determine whether TFLite
-// GPU support is available, and whether GL or Metal inference is available.
+// GPU support and GL inference are available.
 
 #ifdef MEDIAPIPE_DISABLE_GL_COMPUTE
 #define MEDIAPIPE_TFLITE_GL_INFERENCE 0
@@ -26,29 +26,19 @@
 #define MEDIAPIPE_TFLITE_GL_INFERENCE 1
 #endif  // MEDIAPIPE_DISABLE_GL_COMPUTE
 
-#define MEDIAPIPE_TFLITE_METAL_INFERENCE 0
 
-#if TARGET_OS_OSX && !MEDIAPIPE_DISABLE_GPU
-#define MEDIAPIPE_TFLITE_METAL_INFERENCE 1
-#endif  // TARGET_OS_OSX && !MEDIAPIPE_DISABLE_GPU
 
-#define MEDIAPIPE_TFLITE_GPU_SUPPORTED \
-  ((MEDIAPIPE_TFLITE_GL_INFERENCE) || (MEDIAPIPE_TFLITE_METAL_INFERENCE))
+#define MEDIAPIPE_TFLITE_GPU_SUPPORTED MEDIAPIPE_TFLITE_GL_INFERENCE
 
 #if MEDIAPIPE_TFLITE_GL_INFERENCE
 #include "tflite/delegates/gpu/gl/gl_buffer.h"
 #endif  // MEDIAPIPE_TFLITE_GL_INFERENCE
 
-#if MEDIAPIPE_TFLITE_METAL_INFERENCE
-#import <Metal/Metal.h>
-#endif  // MEDIAPIPE_TFLITE_METAL_INFERENCE
 
 namespace mediapipe {
 
 #if MEDIAPIPE_TFLITE_GL_INFERENCE
 typedef ::tflite::gpu::gl::GlBuffer GpuTensor;
-#elif MEDIAPIPE_TFLITE_METAL_INFERENCE
-typedef id<MTLBuffer> GpuTensor;
 #else
 struct DummyGpuTensor {};
 typedef DummyGpuTensor GpuTensor;  // Dummy define for less #ifdefs

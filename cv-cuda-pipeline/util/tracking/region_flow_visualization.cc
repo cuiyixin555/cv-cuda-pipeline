@@ -97,11 +97,7 @@ void VisualizeRegionFlowFeaturesImpl(const RegionFlowFeatureList& feature_list,
       }
     }
 
-#ifdef __APPLE__
-    cv::Scalar color_scaled(color.mul(alpha) + outlier.mul(1.0f - alpha));
-#else
     cv::Scalar color_scaled(color * alpha + outlier * (1.0f - alpha));
-#endif
     cv::line(*output, p1, p2, color_scaled, line_size, cv::LINE_AA);
     cv::circle(*output, p1, 2.0 * line_size, color_scaled, line_size);
 
@@ -156,11 +152,7 @@ void VisualizeLongFeatureStreamImpl(const LongFeatureStream& stream,
       }
 
       const float alpha = std::min(1.0f, irls_weights[k] * 0.5f);
-#ifdef __APPLE__
-      cv::Scalar color_scaled(color.mul(alpha) + outlier.mul(1.0f - alpha));
-#else
       cv::Scalar color_scaled(color * alpha + outlier * (1.0f - alpha));
-#endif
 
       if (k < pts.size() - 1) {
         // Draw line connecting points.

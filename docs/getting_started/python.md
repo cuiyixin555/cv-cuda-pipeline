@@ -25,7 +25,7 @@ as the primary developer documentation site for MediaPipe as of April 3, 2023.*
 
 MediaPipe offers ready-to-use yet customizable Python solutions as a prebuilt
 Python package. MediaPipe Python package is available on
-[PyPI](https://pypi.org/project/mediapipe/) for Linux, macOS and Windows.
+[PyPI](https://pypi.org/project/mediapipe/) for Linux and Windows.
 
 You can, for instance, activate a Python virtual environment:
 
@@ -92,7 +92,7 @@ Nvidia Jetson and Raspberry Pi, please read
 
 1.  Make sure that Bazel and OpenCV are correctly installed and configured for
     MediaPipe. Please see [Installation](./install.md) for how to setup Bazel
-    and OpenCV for MediaPipe on Linux and macOS.
+    and OpenCV for MediaPipe on Linux and Windows.
 
 2.  Install the following dependencies.
 
@@ -105,15 +105,6 @@ Nvidia Jetson and Raspberry Pi, please read
 
     # If you need to build opencv from source.
     $ sudo apt install cmake
-    ```
-
-    macOS:
-
-    ```bash
-    $ brew install protobuf
-
-    # If you need to build opencv from source.
-    $ brew install cmake
     ```
 
     Windows:

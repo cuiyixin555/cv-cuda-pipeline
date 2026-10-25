@@ -326,9 +326,6 @@ cc_library(
     ] + select({
         "//cv-cuda-pipeline:emscripten": [
         ],
-        "//cv-cuda-pipeline:macos": [
-            "//cv-cuda-pipeline/framework/port:file_helpers",
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -370,9 +367,6 @@ cc_library(
         "@com_google_absl//absl/container:node_hash_map",
     ] + select({
         "//cv-cuda-pipeline:emscripten": [
-        ],
-        "//cv-cuda-pipeline:macos": [
-            "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
@@ -1189,9 +1183,6 @@ cc_library(
     ] + select({
         "//cv-cuda-pipeline:emscripten": [
         ],
-        "//cv-cuda-pipeline:macos": [
-            "//cv-cuda-pipeline/framework/port:file_helpers",
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -1604,13 +1595,7 @@ cc_library(
     name = "refine_landmarks_from_heatmap_calculator",
     srcs = ["refine_landmarks_from_heatmap_calculator.cc"],
     hdrs = ["refine_landmarks_from_heatmap_calculator.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":refine_landmarks_from_heatmap_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",

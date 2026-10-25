@@ -19,14 +19,13 @@ framework, TFLite, ...). Only the `Mp*` C symbols listed in the domain's version
 script are exported; all other symbols are kept local so that multiple domain
 libraries can be loaded into the same process without clashing.
 
-The version script (GNU ld format) is the single source of truth for the
-exported symbol set. On Apple platforms it is converted into an
-`-exported_symbols_list` file at build time.
+The version script (GNU ld format) defines the exported symbol set on Linux.
+Windows uses `MP_EXPORT` declarations.
 
 For every domain the macro produces:
 
 *   `:<name>` - the raw `cc_binary(linkshared = True)` for the target platform.
-*   `:lib<name>.so` / `:lib<name>.dylib` / `:<name>.dll` - genrules that copy
+*   `:lib<name>.so` / `:<name>.dll` - genrules that copy
     the binary to its conventional file name. Prefer these over `:<name>` when
     building from the command line: they only depend on the library file itself
     and not on the (potentially unbuildable) runfiles of the `cc_binary`.
@@ -34,14 +33,6 @@ For every domain the macro produces:
 """
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-
-# Shell snippet that converts a GNU ld version script into an Apple
-# `-exported_symbols_list` file: every `MpFoo*;` / `MpBar;` entry in the
-# `global:` section becomes `_MpFoo*` / `_MpBar` (Mach-O symbols carry a
-# leading underscore). Comments and the `local: *;` catch-all are dropped.
-_LDS_TO_EXPORTED_SYMBOLS_CMD = (
-    "sed -n 's/^[[:space:]]*\\(Mp[A-Za-z0-9_]*\\**\\);.*$$/_\\1/p' $< > $@"
-)
 
 _SHARED_LIBRARY_TAGS = [
     "manual",
@@ -52,11 +43,11 @@ _SHARED_LIBRARY_TAGS = [
 # Size-related linker flags. The libraries only ever expose the `Mp*` C API,
 # so everything that is not reachable from it is dead weight for consumers:
 #
-# *   `--gc-sections` / `-dead_strip` drop unreferenced sections (crosstools
+# *   `--gc-sections` drops unreferenced sections (crosstools
 #     compile with `-ffunction-sections -fdata-sections`).
 # *   `--icf=all` folds identical functions (ELF only; lld-link does this
 #     by default together with `/OPT:REF`).
-# *   `--strip-all` / `-x` drop the symbol table and debug info, which can be
+# *   `--strip-all` drops the symbol table and debug info, which can be
 #     a third of an unstripped library. The exported `Mp*` symbols are kept.
 #
 # Together with `-legacy_whole_archive` (see `cc_binary` below), these flags
@@ -66,25 +57,6 @@ _ELF_SIZE_LINKOPTS = [
     "-Wl,--icf=all",
     "-Wl,--strip-all",
 ]
-
-# `cc_binary` goes through the clang driver and needs `-Wl,`.
-_MACHO_SIZE_LDFLAGS = [
-    "-dead_strip",
-    "-x",
-]
-
-# Consumers rewrite the install name and rpaths of the library when they
-# bundle it (Dart/Flutter run `install_name_tool -id` with the absolute path
-# of the copy). lld pads the Mach-O header by only 0x20 bytes, which left the
-# macOS libraries with 40-88 bytes of room and made that
-# step fail with "larger updated load commands do not fit". Reserve room for
-# maximum-length install names, like Xcode does for its own links.
-_MACHO_HEADERPAD_LDFLAGS = [
-    "-headerpad_max_install_names",
-]
-
-_MACHO_LDFLAGS = _MACHO_SIZE_LDFLAGS + _MACHO_HEADERPAD_LDFLAGS
-_MACHO_LINKOPTS = ["-Wl," + flag for flag in _MACHO_LDFLAGS]
 
 # Already the default of the lexan toolchain in opt mode (`/opt:ref` implies
 # ICF in lld-link); listed explicitly so that the release does not depend on
@@ -126,20 +98,10 @@ def mediapipe_tasks_c_shared_library(
       visibility: Visibility of the generated targets.
       **kwargs: Additional arguments forwarded to `cc_binary`.
     """
-    exported_symbols = name + "_exported_symbols.exp"
-    native.genrule(
-        name = name + "_exported_symbols",
-        srcs = [version_script],
-        outs = [exported_symbols],
-        cmd = _LDS_TO_EXPORTED_SYMBOLS_CMD,
-        visibility = ["//visibility:private"],
-    )
-
     cc_binary(
         name = name,
         additional_linker_inputs = [
             version_script,
-            ":" + exported_symbols,
         ],
         linkopts = select({
             "@platforms//os:linux": [
@@ -147,10 +109,6 @@ def mediapipe_tasks_c_shared_library(
                 "-Wl,--version-script=$(location %s)" % version_script,
                 "-Wl,-Bsymbolic",
             ] + _ELF_SIZE_LINKOPTS,
-            "@platforms//os:osx": [
-                "-Wl,-install_name,@rpath/lib%s.dylib" % name,
-                "-Wl,-exported_symbols_list,$(location :%s)" % exported_symbols,
-            ] + _MACHO_LINKOPTS,
             # Windows relies on `MP_EXPORT` (`__declspec(dllexport)`) to
             # restrict the exported symbol set.
             "@platforms//os:windows": _PE_SIZE_LINKOPTS,
@@ -180,12 +138,6 @@ def mediapipe_tasks_c_shared_library(
         visibility = visibility,
     )
     _copy_output_genrule(
-        name = name + "_macos",
-        src = ":" + name,
-        out = "lib%s.dylib" % name,
-        visibility = visibility,
-    )
-    _copy_output_genrule(
         name = name + "_windows",
         src = ":" + name,
         out = "%s.dll" % name,
@@ -195,7 +147,6 @@ def mediapipe_tasks_c_shared_library(
         name = name + "_lib",
         actual = select({
             "@platforms//os:windows": ":%s.dll" % name,
-            "@platforms//os:osx": ":lib%s.dylib" % name,
             "//conditions:default": ":lib%s.so" % name,
         }),
         tags = _SHARED_LIBRARY_TAGS,

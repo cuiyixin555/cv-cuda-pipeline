@@ -12,12 +12,8 @@ absl::StatusOr<bool> IsGpuOriginAtBottom(mediapipe::GpuOrigin::Mode origin) {
       return false;
     case mediapipe::GpuOrigin::DEFAULT:
     case mediapipe::GpuOrigin::CONVENTIONAL:
-      // TOP_LEFT on Metal, BOTTOM_LEFT on OpenGL.
-#ifdef __APPLE__
-      return false;
-#else
+      // OpenGL uses a bottom-left origin.
       return true;
-#endif
     default:
       return absl::InvalidArgumentError(
           absl::StrFormat("Unhandled GPU origin %i", origin));

@@ -102,13 +102,6 @@ void* ThreadPool::WorkerThread::ThreadBody(void* arg) {
     ABSL_LOG(ERROR) << "Thread priority and processor affinity feature aren't "
                        "supported on the current platform.";
   }
-#if __APPLE__
-  int error = pthread_setname_np(name.c_str());
-  if (error != 0) {
-    ABSL_LOG(ERROR) << "Error : " << strerror(error) << std::endl
-                    << "Failed to set name for thread: " << name;
-  }
-#endif  // __APPLE__
 #endif  // __linux__
   thread->pool_->RunWorker();
   return nullptr;

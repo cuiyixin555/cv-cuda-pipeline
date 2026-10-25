@@ -65,19 +65,4 @@ cc_binary(
     deps = [":text_summarizer_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/text/text_summarizer:libtext_summarizer.dylib
-cc_binary(
-    name = "libtext_summarizer.dylib",
-    linkopts = [
-        "-Wl,-install_name,libtext_summarizer.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":text_summarizer_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

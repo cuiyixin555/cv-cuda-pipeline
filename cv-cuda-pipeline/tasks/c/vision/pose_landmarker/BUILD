@@ -157,19 +157,4 @@ cc_binary(
     deps = [":pose_landmarker_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/pose_landmarker:libpose_landmarker.dylib
-cc_binary(
-    name = "libpose_landmarker.dylib",
-    linkopts = [
-        "-Wl,-install_name,libpose_landmarker.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":pose_landmarker_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

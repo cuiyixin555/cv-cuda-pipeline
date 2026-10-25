@@ -312,9 +312,6 @@ cc_library(
             "@com_google_absl//absl/flags:flag",
         ],
         "//cv-cuda-pipeline:emscripten": [],
-        "//cv-cuda-pipeline:macos": [
-            "@com_google_absl//absl/flags:flag",
-        ],
         "//cv-cuda-pipeline:windows": [
             "@bazel_tools//tools/cpp/runfiles",
             "@com_google_absl//absl/flags:flag",

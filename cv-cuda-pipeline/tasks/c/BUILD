@@ -103,8 +103,6 @@ MEDIAPIPE_TASKS_C_RETRIEVAL_BORROWED_DEPS = [
 #     //cv-cuda-pipeline/tasks/c:mediapipe_tasks_vision_lib
 mediapipe_tasks_c_shared_library(
     name = "mediapipe_tasks_vision",
-    framework_bundle_id = "com.google.mediapipe.tasks.c.vision",
-    framework_name = "MediaPipeTasksVisionC",
     version_script = ":mediapipe_tasks_vision_version_script.lds",
     visibility = ["//visibility:public"],
     deps = MEDIAPIPE_TASKS_C_CORE_DEPS + MEDIAPIPE_TASKS_C_VISION_DEPS,
@@ -112,8 +110,6 @@ mediapipe_tasks_c_shared_library(
 
 mediapipe_tasks_c_shared_library(
     name = "mediapipe_tasks_text",
-    framework_bundle_id = "com.google.mediapipe.tasks.c.text",
-    framework_name = "MediaPipeTasksTextC",
     version_script = ":mediapipe_tasks_text_version_script.lds",
     visibility = ["//visibility:public"],
     deps = MEDIAPIPE_TASKS_C_CORE_DEPS + MEDIAPIPE_TASKS_C_TEXT_DEPS,
@@ -121,8 +117,6 @@ mediapipe_tasks_c_shared_library(
 
 mediapipe_tasks_c_shared_library(
     name = "mediapipe_tasks_audio",
-    framework_bundle_id = "com.google.mediapipe.tasks.c.audio",
-    framework_name = "MediaPipeTasksAudioC",
     version_script = ":mediapipe_tasks_audio_version_script.lds",
     visibility = ["//visibility:public"],
     deps = MEDIAPIPE_TASKS_C_CORE_DEPS + MEDIAPIPE_TASKS_C_AUDIO_DEPS,
@@ -130,8 +124,6 @@ mediapipe_tasks_c_shared_library(
 
 mediapipe_tasks_c_shared_library(
     name = "mediapipe_tasks_decision",
-    framework_bundle_id = "com.google.mediapipe.tasks.c.decision",
-    framework_name = "MediaPipeTasksDecisionC",
     version_script = ":mediapipe_tasks_decision_version_script.lds",
     visibility = ["//visibility:public"],
     deps = MEDIAPIPE_TASKS_C_CORE_DEPS + MEDIAPIPE_TASKS_C_DECISION_DEPS,
@@ -139,8 +131,6 @@ mediapipe_tasks_c_shared_library(
 
 mediapipe_tasks_c_shared_library(
     name = "mediapipe_tasks_retrieval",
-    framework_bundle_id = "com.google.mediapipe.tasks.c.retrieval",
-    framework_name = "MediaPipeTasksRetrievalC",
     version_script = ":mediapipe_tasks_retrieval_version_script.lds",
     visibility = ["//visibility:public"],
     deps = MEDIAPIPE_TASKS_C_CORE_DEPS +
@@ -196,18 +186,11 @@ genrule(
 )
 
 # buildifier: disable=constant-glob
-genrule(
-    name = "mediapipe_macos",
-    srcs = glob(["prebuilts/darwin_arm64/libmediapipe.dylib"]) or [":mediapipe_source"],
-    outs = ["libmediapipe.dylib"],
-    cmd = "cp $< $@",
-)
 
 alias(
     name = "libmediapipe",
     actual = select({
         "@platforms//os:windows": ":libmediapipe.dll",
-        "@platforms//os:osx": ":libmediapipe.dylib",
         "//conditions:default": ":libmediapipe.so",
     }),
     visibility = ["//visibility:public"],

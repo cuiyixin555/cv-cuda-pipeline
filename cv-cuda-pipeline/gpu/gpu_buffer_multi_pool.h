@@ -27,22 +27,12 @@
 #include "cv-cuda-pipeline/gpu/gpu_buffer_format.h"
 #include "cv-cuda-pipeline/gpu/multi_pool.h"
 
-#if MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
-#include "cv-cuda-pipeline/gpu/cv_pixel_buffer_pool_wrapper.h"
-#else
 #include "cv-cuda-pipeline/gpu/gl_texture_buffer_pool.h"
-#endif  // MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
 
 namespace mediapipe {
 
-class CvPixelBufferPoolWrapper;
-
 class GpuBufferMultiPool : public MultiPool<
-#if MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
-                               CvPixelBufferPoolWrapper,
-#else
                                GlTextureBufferPool,
-#endif  // MEDIAPIPE_GPU_BUFFER_POOL_USE_CV_PIXEL_BUFFER
                                internal::GpuBufferSpec, GpuBuffer> {
  public:
   using MultiPool::MultiPool;

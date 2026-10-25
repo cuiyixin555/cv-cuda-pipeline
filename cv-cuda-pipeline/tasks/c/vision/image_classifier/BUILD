@@ -107,19 +107,4 @@ cc_binary(
     deps = [":image_classifier_lib"],
 )
 
-# bazel build --config darwin_arm64 -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \
-# //cv-cuda-pipeline/tasks/c/vision/image_classifier:libimage_classifier.dylib
-cc_binary(
-    name = "libimage_classifier.dylib",
-    linkopts = [
-        "-Wl,-install_name,libimage_classifier.dylib",
-        "-fvisibility=hidden",
-    ],
-    linkshared = True,
-    tags = [
-        "manual",
-        "nobuilder",
-        "notap",
-    ],
-    deps = [":image_classifier_lib"],
-)
+# bazel build -c opt --strip always --define MEDIAPIPE_DISABLE_GPU=1 \

@@ -19,7 +19,6 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//cv-cuda-pipeline/framework:encode_binary_proto.bzl", "encode_binary_proto")
 load("//cv-cuda-pipeline/framework:mediapipe_cc_test.bzl", "mediapipe_cc_test")
-load("//cv-cuda-pipeline/framework:more_selects.bzl", "more_selects")
 load("//cv-cuda-pipeline/framework/port:build_config.bzl", "mediapipe_proto_library")
 load(
     "//cv-cuda-pipeline/framework/tool:mediapipe_graph.bzl",
@@ -47,26 +46,7 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-more_selects.config_setting_negation(
-    name = "not_disable_gpu",
-    negate = ":disable_gpu",
-)
 
-selects.config_setting_group(
-    name = "platform_apple_with_gpu",
-    match_all = [
-        ":not_disable_gpu",
-        "//cv-cuda-pipeline:apple",
-    ],
-)
-
-selects.config_setting_group(
-    name = "platform_apple_without_gpu",
-    match_all = [
-        ":disable_gpu",
-        "//cv-cuda-pipeline:apple",
-    ],
-)
 
 selects.config_setting_group(
     name = "compute_shader_unavailable",
@@ -699,17 +679,11 @@ cc_library(
 
 # The LiteRT v2.0.0 GPU accelerator is not open sourced.
 # Prebuilts are published per platform at
-# litert/prebuilt/<platform>/ (e.g. ios_arm64/libLiteRtMetalAccelerator.dylib)
+# litert/prebuilt/<platform>/.
 cc_library(
     name = "inference_calculator_litert",
     srcs = ["inference_calculator_litert.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":inference_calculator_interface",
         ":inference_interpreter_delegate_runner",
@@ -731,12 +705,7 @@ cc_library(
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:optional",
         "@litert//litert/cc:litert_options",
-    ] + select({
-        "//cv-cuda-pipeline:apple": [
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-        ],
-        "//conditions:default": [],
-    }) + select({
+    ] + [] + select({
         "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": [
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
@@ -745,39 +714,6 @@ cc_library(
     alwayslink = 1,
 )
 
-cc_library(
-    name = "inference_calculator_metal",
-    srcs = ["inference_calculator_metal.cc"],
-    copts = [
-        "-x objective-c++",
-        "-fobjc-arc",  # enable reference-counting
-    ],
-    deps = [
-        ":inference_calculator_interface",
-        ":inference_io_mapper",
-        ":tensor_span",
-        "//cv-cuda-pipeline/framework/formats:tensor",
-        "//cv-cuda-pipeline/framework/port:status",
-        "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-        "//cv-cuda-pipeline/gpu:MPPMetalUtil",
-        "//cv-cuda-pipeline/gpu:gpu_buffer",
-        "//cv-cuda-pipeline/util/tflite:config",
-        "@com_google_absl//absl/log:absl_log",
-        "@com_google_absl//absl/memory",
-        "@com_google_absl//absl/strings:str_format",
-        "@litert//tflite/delegates/gpu:metal_delegate",
-        "@litert//tflite/delegates/gpu:metal_delegate_internal",
-        "@litert//tflite/delegates/gpu/common:shape",
-        "@litert//tflite/delegates/gpu/metal:buffer_convert",
-    ] + select({
-        "//cv-cuda-pipeline:apple": [
-            "//third_party/apple_frameworks:CoreVideo",
-            "//third_party/apple_frameworks:MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
-    alwayslink = 1,
-)
 
 cc_library_with_tflite(
     name = "inference_runner",
@@ -834,13 +770,7 @@ cc_library(
     name = "inference_runner_litert",
     srcs = ["inference_runner_litert.cc"],
     hdrs = ["inference_runner_litert.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":inference_calculator_cc_proto",
         ":inference_calculator_interface",
@@ -897,12 +827,6 @@ cc_library(
         "@litert//litert/cc/options:litert_gpu_options",
         "@litert//litert/cc/options:litert_qualcomm_options",
     ] + select({
-        "//cv-cuda-pipeline:apple": [
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "@litert//tflite/delegates/gpu/common:shape",
-            "@litert//tflite/delegates/gpu/metal:buffer_convert",
-            "@litert//tflite/delegates/gpu/metal:metal_device",
-        ],
         "//cv-cuda-pipeline/gpu/webgpu:use_webgpu": [
             "//cv-cuda-pipeline/gpu/webgpu:webgpu_service",
         ],
@@ -1142,10 +1066,7 @@ cc_library(
         ":inference_calculator_cpu",
         ":inference_calculator_interface",
         ":inference_calculator_xnnpack",
-    ] + select({
-        "//conditions:default": [":inference_calculator_gl_if_compute_shader_available"],
-        ":platform_apple_with_gpu": [":inference_calculator_metal"],
-    }),
+    ] + [":inference_calculator_gl_if_compute_shader_available"],
     alwayslink = 1,
 )
 
@@ -1162,13 +1083,7 @@ mediapipe_proto_library(
 cc_library(
     name = "tensor_converter_calculator",
     srcs = ["tensor_converter_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     features = ["-layering_check"],  # allow depending on tensor_converter_calculator_gpu_deps
     deps = [
         ":tensor_converter_calculator_cc_proto",
@@ -1203,13 +1118,7 @@ cc_library(
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
             "//cv-cuda-pipeline/gpu:gpu_buffer",
         ],
-    }) + select({
-        "//cv-cuda-pipeline:apple": [
-            ":tensor_converter_metal",
-            "//third_party/apple_frameworks:MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
+    }) + [],
     alwayslink = 1,
 )
 
@@ -1264,9 +1173,7 @@ cc_library(
         ":tensor_converter_gpu",
         "//cv-cuda-pipeline/framework:port",
         "//cv-cuda-pipeline/framework/port:status",
-    ] + select({
-        "//cv-cuda-pipeline:apple": [],
-        "//conditions:default": [
+    ] + [
             "//cv-cuda-pipeline/framework:calculator_framework",
             "//cv-cuda-pipeline/framework:memory_manager",
             "//cv-cuda-pipeline/framework/formats:image_frame",
@@ -1284,42 +1191,8 @@ cc_library(
             "@com_google_absl//absl/status",
             "@com_google_absl//absl/strings",
         ],
-    }),
 )
 
-cc_library(
-    name = "tensor_converter_metal",
-    srcs = ["tensor_converter_metal.cc"],
-    hdrs = ["tensor_converter_metal.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
-    features = ["-layering_check"],  # allow depending on tensor_converter_calculator_gpu_deps
-    linkopts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-framework CoreVideo",
-            "-framework MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
-    deps = [
-        "//cv-cuda-pipeline/framework:port",
-    ] + select({
-        "//cv-cuda-pipeline:apple": [
-            ":tensor_converter_calculator_gpu_deps",
-            ":tensor_converter_gpu",
-            "//cv-cuda-pipeline/framework/formats:tensor",
-            "//cv-cuda-pipeline/framework/port:ret_check",
-            "//cv-cuda-pipeline/framework/port:status",
-            "//third_party/apple_frameworks:MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
-)
 
 cc_library(
     name = "tensor_converter_gl31",
@@ -1330,9 +1203,7 @@ cc_library(
         ":tensor_converter_gpu",
         "//cv-cuda-pipeline/framework:port",
         "//cv-cuda-pipeline/framework/port:status",
-    ] + select({
-        "//cv-cuda-pipeline:apple": [],
-        "//conditions:default": [
+    ] + [
             "//cv-cuda-pipeline/framework:calculator_context",
             "//cv-cuda-pipeline/framework:memory_manager",
             "//cv-cuda-pipeline/framework/formats:tensor",
@@ -1344,20 +1215,12 @@ cc_library(
             "@com_google_absl//absl/status",
             "@com_google_absl//absl/strings",
         ],
-    }),
 )
 
 cc_library(
     name = "tensor_converter_calculator_gpu_deps",
     visibility = ["//visibility:private"],
-    deps = select({
-        ":platform_apple_with_gpu": [
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//cv-cuda-pipeline/gpu:MPPMetalUtil",
-        ],
-        # This setting is needed to allow bazel to build all targets on Mac with GPU disabled
-        ":platform_apple_without_gpu": [],
-        "//conditions:default": [
+    deps = [
             ":tensor_converter_gl30",
             ":tensor_converter_gl31",
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
@@ -1365,7 +1228,6 @@ cc_library(
             "//cv-cuda-pipeline/gpu:gpu_buffer",
             "//cv-cuda-pipeline/gpu:shader_util",
         ],
-    }),
 )
 
 cc_test(
@@ -1407,13 +1269,7 @@ mediapipe_proto_library(
 cc_library(
     name = "tensors_to_detections_calculator",
     srcs = ["tensors_to_detections_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     features = ["-layering_check"],  # allow depending on tensors_to_detections_calculator_gpu_deps
     deps = [
         ":tensors_to_detections_calculator_cc_proto",
@@ -1433,30 +1289,16 @@ cc_library(
     ] + selects.with_or({
         ":compute_shader_unavailable": [],
         "//conditions:default": [":tensors_to_detections_calculator_gpu_deps"],
-    }) + select({
-        "//cv-cuda-pipeline:apple": [
-            "//third_party/apple_frameworks:CoreVideo",
-            "//third_party/apple_frameworks:MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
+    }) + [],
     alwayslink = 1,
 )
 
 cc_library(
     name = "tensors_to_detections_calculator_gpu_deps",
     visibility = ["//visibility:private"],
-    deps = select({
-        ":platform_apple_with_gpu": [
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//cv-cuda-pipeline/gpu:MPPMetalUtil",
-        ],
-        # This setting is needed to allow bazel to build all targets on Mac with GPU disabled
-        ":platform_apple_without_gpu": [],
-        "//conditions:default": [
+    deps = [
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
         ],
-    }),
 )
 
 mediapipe_proto_library(
@@ -1471,13 +1313,7 @@ mediapipe_proto_library(
 cc_library(
     name = "tensors_to_landmarks_calculator",
     srcs = ["tensors_to_landmarks_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":tensors_to_landmarks_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -1503,13 +1339,7 @@ cc_library(
     name = "landmarks_to_tensor_calculator",
     srcs = ["landmarks_to_tensor_calculator.cc"],
     hdrs = ["landmarks_to_tensor_calculator.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":landmarks_to_tensor_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -1553,13 +1383,7 @@ mediapipe_proto_library(
 cc_library(
     name = "tensors_to_floats_calculator",
     srcs = ["tensors_to_floats_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":tensors_to_floats_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -1590,13 +1414,7 @@ cc_test(
 cc_library(
     name = "tensors_to_classification_calculator",
     srcs = ["tensors_to_classification_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":tensors_to_classification_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -1702,13 +1520,7 @@ cc_library(
     name = "image_to_tensor_calculator",
     srcs = ["image_to_tensor_calculator.cc"],
     hdrs = ["image_to_tensor_calculator.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     features = ["-layering_check"],  # allow depending on image_to_tensor_calculator_gpu_deps
     deps = [
         ":image_to_tensor_calculator_cc_proto",
@@ -1765,13 +1577,6 @@ cc_library(
             "//cv-cuda-pipeline/gpu:gpu_buffer",
             "//cv-cuda-pipeline/gpu:gpu_service",
         ],
-        "//cv-cuda-pipeline:apple": [
-            ":image_to_tensor_converter_metal",
-            "//cv-cuda-pipeline/gpu:gl_calculator_helper",
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//cv-cuda-pipeline/gpu:gpu_buffer",
-            "//cv-cuda-pipeline/gpu:gpu_service",
-        ],
         "//conditions:default": [
             ":image_to_tensor_converter_gl_buffer",
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
@@ -1801,13 +1606,7 @@ mediapipe_proto_library(
 cc_library(
     name = "image_to_tensor_converter",
     hdrs = ["image_to_tensor_converter.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":image_to_tensor_utils",
         "//cv-cuda-pipeline/framework/formats:image",
@@ -1820,13 +1619,7 @@ cc_library(
     name = "image_to_tensor_converter_opencv",
     srcs = ["image_to_tensor_converter_opencv.cc"],
     hdrs = ["image_to_tensor_converter_opencv.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":image_to_tensor_converter",
         ":image_to_tensor_utils",
@@ -1871,7 +1664,6 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = ["//cv-cuda-pipeline/framework:port"] + selects.with_or({
         "//cv-cuda-pipeline:emscripten": [],
-        "//cv-cuda-pipeline:apple": [],
         "//conditions:default": [
             ":image_to_tensor_converter",
             ":image_to_tensor_converter_gl_utils",
@@ -1941,56 +1733,12 @@ cc_library(
     }),
 )
 
-cc_library(
-    name = "image_to_tensor_converter_metal",
-    srcs = ["image_to_tensor_converter_metal.cc"],
-    hdrs = ["image_to_tensor_converter_metal.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-framework CoreVideo",
-            "-framework MetalKit",
-        ],
-        "//conditions:default": [],
-    }),
-    visibility = ["//visibility:private"],
-    deps = ["//cv-cuda-pipeline/framework:port"] + select({
-        "//cv-cuda-pipeline:apple": [
-            ":image_to_tensor_converter",
-            ":image_to_tensor_utils",
-            "//cv-cuda-pipeline/framework:calculator_framework",
-            "//cv-cuda-pipeline/framework/formats:image",
-            "//cv-cuda-pipeline/framework/formats:tensor",
-            "//cv-cuda-pipeline/framework/port:ret_check",
-            "//cv-cuda-pipeline/framework/port:status",
-            "//cv-cuda-pipeline/framework/port:statusor",
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//cv-cuda-pipeline/gpu:gpu_buffer_format",
-            "@com_google_absl//absl/strings",
-            "@litert//tflite/delegates/gpu/common:shape",
-            "@litert//tflite/delegates/gpu/common:types",
-        ],
-        "//conditions:default": [],
-    }),
-)
 
 cc_library(
     name = "image_to_tensor_utils",
     srcs = ["image_to_tensor_utils.cc"],
     hdrs = ["image_to_tensor_utils.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         ":image_to_tensor_calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_framework",
@@ -2049,13 +1797,7 @@ cc_library(
     name = "tensors_to_segmentation_calculator",
     srcs = ["tensors_to_segmentation_calculator.cc"],
     hdrs = ["tensors_to_segmentation_calculator.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     features = ["-layering_check"],  # allow depending on tensors_to_segmentation_calculator_gpu_deps
     deps = [
         ":tensors_to_segmentation_calculator_cc_proto",
@@ -2094,13 +1836,7 @@ cc_library(
             ":tensors_to_segmentation_converter_gl_texture",
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
         ],
-        ":platform_apple_with_gpu": [
-            ":tensors_to_segmentation_converter_metal",
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//cv-cuda-pipeline/gpu:gl_calculator_helper",
-        ],
         # This setting is needed to allow bazel to build all targets on Mac with GPU disabled
-        ":platform_apple_without_gpu": [],
         "//conditions:default": [
             ":tensors_to_segmentation_converter_gl_buffer",
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
@@ -2213,7 +1949,6 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = ["//cv-cuda-pipeline/framework:port"] + selects.with_or({
         "//cv-cuda-pipeline:emscripten": [],
-        "//cv-cuda-pipeline:apple": [],
         "//conditions:default": [
             ":tensors_to_segmentation_calculator_cc_proto",
             ":tensors_to_segmentation_converter",
@@ -2247,48 +1982,6 @@ cc_library(
     }),
 )
 
-cc_library(
-    name = "tensors_to_segmentation_converter_metal",
-    srcs = ["tensors_to_segmentation_converter_metal.cc"],
-    hdrs = ["tensors_to_segmentation_converter_metal.h"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
-    visibility = ["//visibility:private"],
-    deps = [
-        "//cv-cuda-pipeline/framework:port",
-    ] + selects.with_or({
-        ":gpu_inference_disabled": [],
-        ":platform_apple_with_gpu": [
-            ":tensors_to_segmentation_calculator_cc_proto",
-            ":tensors_to_segmentation_converter",
-            ":tensors_to_segmentation_utils",
-            "//cv-cuda-pipeline/gpu:MPPMetalUtil",
-            "//cv-cuda-pipeline/gpu:MPPMetalHelper",
-            "//third_party/apple_frameworks:MetalKit",
-            "@com_google_absl//absl/status",
-            "@com_google_absl//absl/status:statusor",
-            "//cv-cuda-pipeline/framework:calculator_context",
-            "//cv-cuda-pipeline/framework:calculator_framework",
-            "//cv-cuda-pipeline/framework/formats:image",
-            "//cv-cuda-pipeline/framework/formats:tensor",
-            "//cv-cuda-pipeline/framework/port:ret_check",
-            "//cv-cuda-pipeline/framework/port:status",
-            "//cv-cuda-pipeline/gpu:gl_calculator_helper",
-            "//cv-cuda-pipeline/gpu:gl_simple_shaders",
-            "//cv-cuda-pipeline/gpu:gpu_origin_cc_proto",
-            "//cv-cuda-pipeline/gpu:gpu_origin_utils",
-            "//cv-cuda-pipeline/gpu:shader_util",
-            "//cv-cuda-pipeline/util:resource_util",
-            "@litert//tflite:framework",
-        ],
-        "//conditions:default": [],
-    }),
-)
 
 cc_test(
     name = "tensors_to_segmentation_calculator_test",
@@ -2345,13 +2038,7 @@ cc_test(
 cc_library(
     name = "tensors_dequantization_calculator",
     srcs = ["tensors_dequantization_calculator.cc"],
-    copts = select({
-        "//cv-cuda-pipeline:apple": [
-            "-x objective-c++",
-            "-fobjc-arc",  # enable reference-counting
-        ],
-        "//conditions:default": [],
-    }),
+    copts = [],
     deps = [
         "//cv-cuda-pipeline/framework:calculator_context",
         "//cv-cuda-pipeline/framework:calculator_framework",

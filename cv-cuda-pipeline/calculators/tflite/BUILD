@@ -403,9 +403,6 @@ cc_library(
     ] + select({
         "//cv-cuda-pipeline:emscripten": [
         ],
-        "//cv-cuda-pipeline:macos": [
-            "//cv-cuda-pipeline/framework/port:file_helpers",
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],

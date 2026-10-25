@@ -46,8 +46,6 @@ HostSystem ToHostSystem(int host_system) {
       return HostSystem::HOST_SYSTEM_UNKNOWN;
     case 1:
       return HostSystem::HOST_SYSTEM_LINUX;
-    case 2:
-      return HostSystem::HOST_SYSTEM_MAC;
     case 3:
       return HostSystem::HOST_SYSTEM_WINDOWS;
     default:

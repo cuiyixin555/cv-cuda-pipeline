@@ -450,20 +450,7 @@ new_local_repository(
     path = "/usr",
 )
 
-new_local_repository(
-    name = "macos_opencv",
-    build_file = "@//third_party:opencv_macos.BUILD",
-    # For local MacOS builds, the path should point to an opencv@3 installation.
-    # If you edit the path here, you will also need to update the corresponding
-    # prefix in "opencv_macos.BUILD".
-    path = "/usr/local",  # e.g. /usr/local/Cellar for HomeBrew
-)
 
-new_local_repository(
-    name = "macos_ffmpeg",
-    build_file = "@//third_party:ffmpeg_macos.BUILD",
-    path = "/usr/local/opt/ffmpeg",
-)
 
 new_local_repository(
     name = "windows_opencv",
@@ -492,14 +479,6 @@ http_archive(
     sha256 = "9a955b1b49a4410088a2e0ee2a9c057c3c907d0c1d75454144cb980aca0ba515",
     strip_prefix = "stb-2c980bb59875b0d32144a71867fbdebb2f77cd20",
     urls = ["https://github.com/nothings/stb/archive/2c980bb59875b0d32144a71867fbdebb2f77cd20.tar.gz"],
-)
-
-http_archive(
-    name = "google_toolbox_for_mac",
-    build_file = "@//third_party:google_toolbox_for_mac.BUILD",
-    sha256 = "e3ac053813c989a88703556df4dc4466e424e30d32108433ed6beaec76ba4fdc",
-    strip_prefix = "google-toolbox-for-mac-2.2.1",
-    url = "https://github.com/google/google-toolbox-for-mac/archive/v2.2.1.zip",
 )
 
 # Pin kept identical to the rules_ml_toolchain version org_tensorflow itself
@@ -642,21 +621,7 @@ http_archive(
     urls = ["https://github.com/halide/Halide/releases/download/v15.0.1/Halide-15.0.1-x86-64-linux-4c63f1befa1063184c5982b11b6a2cc17d4e5815.tar.gz"],
 )
 
-http_archive(
-    name = "macos_x86_64_halide",
-    build_file = "@//third_party:halide.BUILD",
-    sha256 = "48ff073ac1aee5c4aca941a4f043cac64b38ba236cdca12567e09d803594a61c",
-    strip_prefix = "Halide-15.0.1-x86-64-osx",
-    urls = ["https://github.com/halide/Halide/releases/download/v15.0.1/Halide-15.0.1-x86-64-osx-4c63f1befa1063184c5982b11b6a2cc17d4e5815.tar.gz"],
-)
 
-http_archive(
-    name = "macos_arm_64_halide",
-    build_file = "@//third_party:halide.BUILD",
-    sha256 = "db5d20d75fa7463490fcbc79c89f0abec9c23991f787c8e3e831fff411d5395c",
-    strip_prefix = "Halide-15.0.1-arm-64-osx",
-    urls = ["https://github.com/halide/Halide/releases/download/v15.0.1/Halide-15.0.1-arm-64-osx-4c63f1befa1063184c5982b11b6a2cc17d4e5815.tar.gz"],
-)
 
 http_archive(
     name = "windows_halide",

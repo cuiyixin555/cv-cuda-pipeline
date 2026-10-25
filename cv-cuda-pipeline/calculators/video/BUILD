@@ -277,9 +277,6 @@ cc_library(
     ] + select({
         "//cv-cuda-pipeline:emscripten": [
         ],
-        "//cv-cuda-pipeline:macos": [
-            "//cv-cuda-pipeline/framework/port:file_helpers",
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -422,7 +419,6 @@ cc_test(
     size = "small",
     srcs = ["tracking_graph_test.cc"],
     copts = ["-DPARALLEL_INVOKER_ACTIVE"] + select({
-        "//cv-cuda-pipeline:apple": [],
         "//cv-cuda-pipeline:emscripten": ["-UPARALLEL_INVOKER_ACTIVE"],
         "//conditions:default": [],
     }),

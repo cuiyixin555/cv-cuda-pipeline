@@ -42,36 +42,7 @@
 #include "cv-cuda-pipeline/gpu/gl_base.h"
 #include "cv-cuda-pipeline/gpu/gpu_buffer_format.h"
 
-#ifdef __APPLE__
-#include <CoreVideo/CoreVideo.h>
 
-#include "cv-cuda-pipeline/objc/CFHolder.h"
-
-#if TARGET_OS_OSX
-
-#ifdef __OBJC__
-@class NSOpenGLContext;
-@class NSOpenGLPixelFormat;
-#else
-struct NSOpenGLContext;
-struct NSOpenGLPixelFormat;
-#endif  // __OBJC___
-
-#else
-
-#ifdef __OBJC__
-@class EAGLSharegroup;
-@class EAGLContext;
-#else
-struct EAGLSharegroup;
-struct EAGLContext;
-#endif  // __OBJC___
-
-#endif  // TARGET_OS_OSX
-
-#else
-
-#endif  // __APPLE__
 
 namespace mediapipe {
 
@@ -140,19 +111,12 @@ constexpr PlatformGlContext kPlatformGlContextNone = 0;
 #elif HAS_EGL
 typedef EGLContext PlatformGlContext;
 constexpr PlatformGlContext kPlatformGlContextNone = EGL_NO_CONTEXT;
-#elif HAS_EAGL
-typedef EAGLContext* PlatformGlContext;
-constexpr PlatformGlContext kPlatformGlContextNone = nil;
-#elif HAS_NSGL
-typedef NSOpenGLContext* PlatformGlContext;
-constexpr PlatformGlContext kPlatformGlContextNone = nil;
 #endif  //  defined(__EMSCRIPTEN__)
 
 // This class provides a common API for creating and managing GL contexts.
 //
 // It handles the following responsibilities:
-// - Providing a cross-platform interface over platform-specific APIs like EGL
-//   and EAGL.
+// - Providing a cross-platform interface over EGL and WebGL.
 // - Managing the interaction between threads and GL contexts.
 // - Managing synchronization between different GL contexts.
 //
@@ -173,10 +137,6 @@ class GlContext : public std::enable_shared_from_this<GlContext> {
                                   bool create_thread);
   static StatusOrGlContext Create(PlatformGlContext share_context,
                                   bool create_thread);
-#if HAS_EAGL
-  static StatusOrGlContext Create(EAGLSharegroup* sharegroup,
-                                  bool create_thread);
-#endif  // HAS_EAGL
 
   // Size in bytes of a GPU device UUID, matching Vulkan's VK_UUID_SIZE.
   static constexpr int kDeviceUuidSize = 16;
@@ -242,13 +202,6 @@ class GlContext : public std::enable_shared_from_this<GlContext> {
 
   // Returns our EGLContext.
   EGLContext egl_context() const { return context_; }
-#elif HAS_EAGL
-  EAGLContext* eagl_context() const { return context_; }
-  CVOpenGLESTextureCacheRef cv_texture_cache() const { return *texture_cache_; }
-#elif HAS_NSGL
-  NSOpenGLContext* nsgl_context() const { return context_; }
-  NSOpenGLPixelFormat* nsgl_pixel_format() const { return pixel_format_; }
-  CVOpenGLTextureCacheRef cv_texture_cache() const { return *texture_cache_; }
 #endif  // HAS_EGL
 
   // Returns whatever the current platform's native context handle is.
@@ -374,17 +327,6 @@ class GlContext : public std::enable_shared_from_this<GlContext> {
   EGLConfig config_;
   EGLSurface surface_ = EGL_NO_SURFACE;
   EGLContext context_ = EGL_NO_CONTEXT;
-#elif HAS_EAGL
-  absl::Status CreateContext(EAGLSharegroup* sharegroup);
-
-  EAGLContext* context_;
-  CFHolder<CVOpenGLESTextureCacheRef> texture_cache_;
-#elif HAS_NSGL
-  absl::Status CreateContext(NSOpenGLContext* share_context);
-
-  NSOpenGLContext* context_;
-  NSOpenGLPixelFormat* pixel_format_;
-  CFHolder<CVOpenGLTextureCacheRef> texture_cache_;
 #endif  // defined(__EMSCRIPTEN__)
 
   class DedicatedThread;
@@ -402,10 +344,6 @@ class GlContext : public std::enable_shared_from_this<GlContext> {
     EGLSurface draw_surface = EGL_NO_SURFACE;
     EGLSurface read_surface = EGL_NO_SURFACE;
     EGLContext context = EGL_NO_CONTEXT;
-#elif HAS_EAGL
-    EAGLContext* context = nullptr;
-#elif HAS_NSGL
-    NSOpenGLContext* context = nullptr;
 #endif  // HAS_EGL
   };
 

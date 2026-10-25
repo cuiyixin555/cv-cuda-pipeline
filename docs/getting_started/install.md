@@ -19,6 +19,9 @@ as the primary developer documentation site for MediaPipe as of April 3, 2023.*
 
 ----
 
+This repository supports Linux and Windows desktops. Apple platforms, including
+macOS, are not supported. Linux OpenGL ES and CUDA functionality is retained.
+
 Note: To interoperate with OpenCV, OpenCV 3.x to 4.1 are preferred. OpenCV
 2.x currently works but interoperability support may be deprecated in the
 future.
@@ -413,133 +416,6 @@ If you run into a build error, please read
 [Troubleshooting](./troubleshooting.md) to find the solutions of several common
 build issues.
 
-## Installing on macOS
-
-1.  Prework:
-
-    *   Install [Homebrew](https://brew.sh).
-    *   Install Apple's Command Line Tools with `xcode-select --install`.
-
-2.  Install Bazelisk.
-
-    Follow the official
-    [Bazel documentation](https://docs.bazel.build/versions/master/install-bazelisk.html)
-    to install Bazelisk.
-
-3.  Checkout MediaPipe repository.
-
-    ```bash
-    $ git clone --depth 1 https://github.com/google/mediapipe.git
-
-    $ cd mediapipe
-    ```
-
-4.  Install OpenCV and FFmpeg.
-
-    Option 1. Use HomeBrew package manager tool to install the pre-compiled
-    OpenCV 3 libraries. FFmpeg will be installed via OpenCV.
-
-    ```bash
-    $ brew install opencv@3
-
-    # There is a known issue caused by the glog dependency. Uninstall glog.
-    $ brew uninstall --ignore-dependencies glog
-    ```
-
-    Option 2. Use MacPorts package manager tool to install the OpenCV libraries.
-
-    ```bash
-    $ port install opencv
-    ```
-
-    Note: when using MacPorts, please edit the [`WORKSPACE`],
-    [`opencv_macos.BUILD`], and [`ffmpeg_macos.BUILD`] files like the following:
-
-    ```bash
-    new_local_repository(
-        name = "macos_opencv",
-        build_file = "@//third_party:opencv_macos.BUILD",
-        path = "/opt",
-    )
-
-    new_local_repository(
-        name = "macos_ffmpeg",
-        build_file = "@//third_party:ffmpeg_macos.BUILD",
-        path = "/opt",
-    )
-
-    cc_library(
-        name = "opencv",
-        srcs = glob(
-            [
-                "local/lib/libopencv_core.dylib",
-                "local/lib/libopencv_highgui.dylib",
-                "local/lib/libopencv_imgcodecs.dylib",
-                "local/lib/libopencv_imgproc.dylib",
-                "local/lib/libopencv_video.dylib",
-                "local/lib/libopencv_videoio.dylib",
-            ],
-        ),
-        hdrs = glob(["local/include/opencv2/**/*.h*"]),
-        includes = ["local/include/"],
-        linkstatic = 1,
-        visibility = ["//visibility:public"],
-    )
-
-    cc_library(
-        name = "libffmpeg",
-        srcs = glob(
-            [
-                "local/lib/libav*.dylib",
-            ],
-        ),
-        hdrs = glob(["local/include/libav*/*.h"]),
-        includes = ["local/include/"],
-        linkopts = [
-            "-lavcodec",
-            "-lavformat",
-            "-lavutil",
-        ],
-        linkstatic = 1,
-        visibility = ["//visibility:public"],
-    )
-    ```
-
-5.  Make sure that Python 3 and the Python "six" library are installed.
-
-    ```
-    $ brew install python
-    $ sudo ln -s -f /usr/local/bin/python3.7 /usr/local/bin/python
-    $ python --version
-    Python 3.7.4
-    $ pip3 install --user six
-    ```
-
-6.  Run the [Hello World! in C++ example](./hello_world_cpp.md).
-
-    ```bash
-    $ export GLOG_logtostderr=1
-    # Need bazel flag 'MEDIAPIPE_DISABLE_GPU=1' as desktop GPU is currently not supported
-    $ bazel run --define MEDIAPIPE_DISABLE_GPU=1 \
-        cv-cuda-pipeline/examples/desktop/hello_world:hello_world
-
-    # Should print:
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    # Hello World!
-    ```
-
-If you run into a build error, please read
-[Troubleshooting](./troubleshooting.md) to find the solutions of several common
-build issues.
-
 ## Installing on Windows
 
 **Disclaimer**: Running MediaPipe on Windows is experimental.
@@ -767,6 +643,4 @@ common build issues.
 [`WORKSPACE`]: https://github.com/google/mediapipe/blob/master/WORKSPACE
 [`opencv_linux.BUILD`]: https://github.com/google/mediapipe/tree/master/third_party/opencv_linux.BUILD
 [`ffmpeg_linux.BUILD`]:https://github.com/google/mediapipe/tree/master/third_party/ffmpeg_linux.BUILD
-[`opencv_macos.BUILD`]: https://github.com/google/mediapipe/tree/master/third_party/opencv_macos.BUILD
-[`ffmpeg_macos.BUILD`]:https://github.com/google/mediapipe/tree/master/third_party/ffmpeg_macos.BUILD
 [`setup_opencv.sh`]: https://github.com/google/mediapipe/blob/master/setup_opencv.sh

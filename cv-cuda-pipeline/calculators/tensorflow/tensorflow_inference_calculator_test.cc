@@ -34,9 +34,6 @@
 #include "tensorflow/core/framework/types.h"
 #include "testing/base/public/gunit.h"
 
-#ifdef __APPLE__
-#include <CoreFoundation/CoreFoundation.h>
-#endif  // defined(__APPLE__)
 
 namespace mediapipe {
 
@@ -52,20 +49,11 @@ constexpr char kBTag[] = "B";
 constexpr char kSessionTag[] = "SESSION";
 
 std::string GetGraphDefPath() {
-#if defined(__APPLE__)
-  char path[1024];
-  CFURLRef bundle_url = CFBundleCopyBundleURL(CFBundleGetMainBundle());
-  CFURLGetFileSystemRepresentation(
-      bundle_url, true, reinterpret_cast<UInt8*>(path), sizeof(path));
-  CFRelease(bundle_url);
-  return mediapipe::file::JoinPath(path, "testdata/frozen_graph_def.pb");
-#else
   return mediapipe::file::JoinPath(
       ::testing::SrcDir(),
       // This should match the path of the output files
       // of the genrule() that generates test model files.
       "cv-cuda-pipeline/calculators/tensorflow/testdata/", "frozen_graph_def.pb");
-#endif
 }
 }  // namespace
 

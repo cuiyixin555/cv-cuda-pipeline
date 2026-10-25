@@ -97,7 +97,7 @@ error: undefined reference to 'cv::putText(cv::InputOutputArray const&, cv::Stri
 usually indicates that OpenCV is not properly configured for MediaPipe. Please
 take a look at the "Install OpenCV and FFmpeg" sections in
 [Installation](./install.md) to see how to modify MediaPipe's WORKSPACE and
-linux_opencv/macos_opencv/windows_opencv.BUILD files for your local opencv
+opencv_linux.BUILD/windows_opencv.BUILD files for your local opencv
 libraries. [This GitHub issue](https://github.com/google/mediapipe/issues/666)
 may also help.
 
@@ -115,7 +115,6 @@ qualified MediaPipe Python for your system. Please note that MediaPipe Python
 PyPI officially supports the **64-bit** version of Python on the following OS:
 
 -   x86_64 Linux
--   x86_64 macOS 10.15+
 -   amd64 Windows
 
 If the OS is currently supported and you still see this error, please make sure

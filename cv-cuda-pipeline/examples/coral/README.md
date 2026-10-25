@@ -6,14 +6,13 @@ You can compile MediaPipe with enabled Edge TPU support to run
 [Coral models](http://coral.ai/models). Just add
 `--define MEDIAPIPE_EDGE_TPU=<type>` to the `bazel` command:
 
-* `--define MEDIAPIPE_EDGE_TPU=usb` for Coral USB devices on Linux and macOS
+* `--define MEDIAPIPE_EDGE_TPU=usb` for Coral USB devices on Linux
 * `--define MEDIAPIPE_EDGE_TPU=pci` for Coral PCIe devices on Linux
 * `--define MEDIAPIPE_EDGE_TPU=all` for both Coral USB and PCIe devices on Linux
 
 You have to install `libusb` library in order to compile with USB support:
 
 * `libusb-1.0-0-dev` on Linux
-* `libusb` on macOS via MacPorts or Homebrew
 
 Command to compile face detection Coral example:
 

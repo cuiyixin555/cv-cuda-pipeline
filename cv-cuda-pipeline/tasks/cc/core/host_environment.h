@@ -33,7 +33,6 @@ enum HostEnvironment {
 enum HostSystem {
   HOST_SYSTEM_UNKNOWN = 0,
   HOST_SYSTEM_LINUX = 1,
-  HOST_SYSTEM_MAC = 2,
   HOST_SYSTEM_WINDOWS = 3,
 };
 

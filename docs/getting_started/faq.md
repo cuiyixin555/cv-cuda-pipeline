@@ -130,8 +130,8 @@ propagate timestamp bounds from input streams to output streams.
 
 ### Can I run MediaPipe on MS Windows?
 
-Currently MediaPipe portability supports Debian Linux, Ubuntu Linux,
-macOS. The core of MediaPipe framework is a C++ library
+This repository supports Linux and Windows desktops.
+The core of MediaPipe framework is a C++ library
 conforming to the C++11 standard, so it is relatively easy to port to
 additional platforms.
 
