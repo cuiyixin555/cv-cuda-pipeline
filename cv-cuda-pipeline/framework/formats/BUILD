@@ -455,25 +455,15 @@ cc_test(
 )
 cc_library(
     name = "tensor",
-    srcs =
-        select({
-            "//cv-cuda-pipeline/gpu/webgpu:use_webgpu": [
-                "//cv-cuda-pipeline/gpu/webgpu:tensor_webgpu_texture_view.cc",
-            ],
-            "//conditions:default": [],
-        }) + [
-            "tensor.cc",
-            "tensor_debugstring.cc",
-        ],
+    srcs = [
+        "tensor.cc",
+        "tensor_debugstring.cc",
+    ],
     hdrs = [
         "tensor.h",
         "//cv-cuda-pipeline/framework/formats/tensor:internal.h",
     ] + [],
     copts = [],
-    linkopts = select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline/gpu/webgpu:use_webgpu_emscripten": ["-sUSE_WEBGPU=1"],
-    }),
     deps = [
         "//cv-cuda-pipeline/framework:memory_manager",
         "//cv-cuda-pipeline/framework:port",
@@ -481,7 +471,6 @@ cc_library(
         "//cv-cuda-pipeline/framework/port:aligned_malloc_and_free",
         "//cv-cuda-pipeline/framework/port:ret_check",
         "//cv-cuda-pipeline/framework/port:status",
-        "//cv-cuda-pipeline/gpu/webgpu:webgpu_check",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -495,12 +484,6 @@ cc_library(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
     ] + select({
-        "//cv-cuda-pipeline/gpu/webgpu:use_webgpu": [
-            "//cv-cuda-pipeline/gpu/webgpu:webgpu_service",
-            "//cv-cuda-pipeline/gpu/webgpu:webgpu_utils",
-        ],
-        "//conditions:default": [],
-    }) + select({
         "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": [
             "//cv-cuda-pipeline/gpu:gl_base",

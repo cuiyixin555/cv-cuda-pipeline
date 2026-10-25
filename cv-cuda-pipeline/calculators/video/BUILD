@@ -275,8 +275,6 @@ cc_library(
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -418,10 +416,7 @@ cc_test(
     name = "tracking_graph_test",
     size = "small",
     srcs = ["tracking_graph_test.cc"],
-    copts = ["-DPARALLEL_INVOKER_ACTIVE"] + select({
-        "//cv-cuda-pipeline:emscripten": ["-UPARALLEL_INVOKER_ACTIVE"],
-        "//conditions:default": [],
-    }),
+    copts = ["-DPARALLEL_INVOKER_ACTIVE"],
     data = [
         ":testdata/lenna.png",
         ":testdata/parallel_tracker.binarypb",

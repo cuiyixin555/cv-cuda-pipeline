@@ -37,10 +37,6 @@
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 #include <cstdlib>
 
-#if MEDIAPIPE_USE_WEBGPU
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_utils.h"
-#endif  // MEDIAPIPE_USE_WEBGPU
-
 namespace mediapipe {
 
 // Zero and negative values are not checked here.
@@ -353,10 +349,6 @@ void Tensor::Move(Tensor* src) {
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 
-#if MEDIAPIPE_USE_WEBGPU
-  webgpu_texture2d_ = std::move(src->webgpu_texture2d_);
-  webgpu_device_ = std::move(src->webgpu_device_);
-#endif  // MEDIAPIPE_USE_WEBGPU
 }
 
 Tensor::Tensor(ElementType element_type, const Shape& shape,
@@ -414,9 +406,6 @@ absl::Status Tensor::Invalidate() {
   }
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
 
-#if MEDIAPIPE_USE_WEBGPU
-  if (webgpu_texture2d_) webgpu_texture2d_.Destroy();
-#endif  // MEDIAPIPE_USE_WEBGPU
   FreeCpuBuffer();
   return absl::OkStatus();
 }
@@ -471,50 +460,6 @@ absl::Status Tensor::ReadBackGpuToCpu() const {
     return absl::OkStatus();
   }
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
-#if __EMSCRIPTEN__ && MEDIAPIPE_USE_WEBGPU
-  // TODO: GetTexture2dData is only supported on Emscripten right now.
-  if (valid_ & kValidWebGpuTexture2d) {
-    const int width = BhwcWidthFromShape(shape_);
-    const int height = BhwcHeightFromShape(shape_);
-    const int depth = BhwcDepthFromShape(shape_);
-    // CPU data layout may not match texture data layout.
-    ABSL_ASSIGN_OR_RETURN(
-        const int padded_depth,
-        WebGpuTextureFormatDepth(webgpu_texture2d_.GetFormat()));
-
-    // imageCopyBuffer.bytesPerRow must be a multiple of 256
-    int bytes_per_row =
-        (width * padded_depth * element_size() + 255) / 256 * 256;
-    const wgpu::Queue& queue = webgpu_device_.GetQueue();
-
-    const int buffer_size = height * bytes_per_row;
-    std::vector<uint8_t> buffer_data(buffer_size);
-
-    RET_CHECK_OK(GetTexture2dData(webgpu_device_, queue, webgpu_texture2d_,
-                                  width, height, bytes_per_row,
-                                  buffer_data.data()));
-
-    uint8_t* src_buffer = buffer_data.data();
-    uint8_t* dst_buffer = reinterpret_cast<uint8_t*>(cpu_buffer_);
-    const int actual_depth_size = depth * element_size();
-    const int padded_depth_size = padded_depth * element_size();
-    for (int r = 0; r < height; r++) {
-      uint8_t const* row = src_buffer;
-
-      for (int e = 0; e < width; e++) {
-        for (int i = 0; i < actual_depth_size; i++) {
-          dst_buffer[i] = row[i];
-        }
-        dst_buffer += actual_depth_size;
-        row += padded_depth_size;
-      }
-      src_buffer += bytes_per_row;
-    }
-
-    return absl::OkStatus();
-  }
-#endif  // __EMSCRIPTEN__ && MEDIAPIPE_USE_WEBGPU
-
   return absl::FailedPreconditionError(absl::StrCat(
       "Failed to read back data from GPU to CPU. Valid formats: ", valid_));
 }

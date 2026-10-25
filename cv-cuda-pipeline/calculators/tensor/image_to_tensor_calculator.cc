@@ -42,7 +42,6 @@
 #include "cv-cuda-pipeline/framework/port/statusor.h"
 #include "cv-cuda-pipeline/gpu/gpu_origin.pb.h"
 #include "cv-cuda-pipeline/gpu/gpu_origin_utils.h"
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_check.h"
 
 #if !MEDIAPIPE_DISABLE_OPENCV
 #include "cv-cuda-pipeline/calculators/tensor/image_to_tensor_converter_opencv.h"
@@ -61,11 +60,6 @@
 #include "cv-cuda-pipeline/calculators/tensor/image_to_tensor_converter_gl_texture.h"
 #include "cv-cuda-pipeline/gpu/gl_calculator_helper.h"
 #include "cv-cuda-pipeline/gpu/gpu_service.h"
-#if MEDIAPIPE_USE_WEBGPU
-#include "cv-cuda-pipeline/gpu/webgpu/image_to_tensor_converter_webgpu_texture.h"
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_service.h"
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_texture_buffer.h"
-#endif  // MEDIAPIPE_USE_WEBGPU
 #endif
 #endif  // !MEDIAPIPE_DISABLE_GPU
 
@@ -92,9 +86,6 @@ class ImageToTensorNodeImpl
     }
 #else  // !MEDIAPIPE_DISABLE_GPU
     cc.UseService(kGpuService).Optional();
-#if MEDIAPIPE_USE_WEBGPU
-    cc.UseService(kWebGpuService).Optional();
-#endif  // MEDIAPIPE_USE_WEBGPU
 #endif  // MEDIAPIPE_DISABLE_GPU
 
     cc.UseService(kMemoryManagerService).Optional();
@@ -221,12 +212,6 @@ class ImageToTensorNodeImpl
                                   cc, input_starts_at_bottom,
                                   GetBorderMode(options_.border_mode())));
 #else
-        if (IsWebGpuAvailable()) {
-#if MEDIAPIPE_USE_WEBGPU
-          ABSL_ASSIGN_OR_RETURN(gpu_converter_,
-                                CreateImageToWebGpuTextureTensorConverter(cc));
-#endif  // MEDIAPIPE_USE_WEBGPU
-        }
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
         if (!gpu_converter_) {
           ABSL_ASSIGN_OR_RETURN(bool input_starts_at_bottom,

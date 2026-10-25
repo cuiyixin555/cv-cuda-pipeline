@@ -23,10 +23,6 @@ as the primary developer documentation site for MediaPipe as of April 3, 2023.*
 
 Please see these [instructions](./python.md).
 
-### JavaScript
-
-Please see these [instructions](./javascript.md).
-
 ### C++
 
 Please see these [instructions](./cpp.md).

@@ -286,7 +286,6 @@ cc_library(
         "resource_util_internal.h",
     ] + select({
         "//conditions:default": ["resource_util_default.cc"],
-        "//cv-cuda-pipeline:emscripten": ["resource_util_emscripten.cc"],
         "//cv-cuda-pipeline:windows": ["resource_util_windows.cc"],
     }),
     hdrs = [
@@ -311,7 +310,6 @@ cc_library(
         "//conditions:default": [
             "@com_google_absl//absl/flags:flag",
         ],
-        "//cv-cuda-pipeline:emscripten": [],
         "//cv-cuda-pipeline:windows": [
             "@bazel_tools//tools/cpp/runfiles",
             "@com_google_absl//absl/flags:flag",

@@ -54,12 +54,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
-    ] + select({
-        "//conditions:default": [],
-        "//cv-cuda-pipeline:emscripten": [
-            ":segmentation_postprocessor_gl",
-        ],
-    }),
+    ],
     alwayslink = 1,
 )
 

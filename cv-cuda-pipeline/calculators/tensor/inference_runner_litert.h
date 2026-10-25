@@ -56,10 +56,6 @@
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 
 
-#if defined(__EMSCRIPTEN__)
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_service.h"
-#endif  // __EMSCRIPTEN__
-
 namespace mediapipe {
 
 // Forward declaration of GlContext for when the full header is not included.
@@ -81,9 +77,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
               input_output_config,
       MemoryManager* memory_manager,
       std::shared_ptr<mediapipe::GlContext> gl_context = nullptr,
-#if defined(__EMSCRIPTEN__)
-      WebGpuService* webgpu_service = nullptr,
-#endif  // __EMSCRIPTEN__
       std::optional<litert::Options> litert_options = std::nullopt,
       LiteRtSystemHandles system_handles = {});
 
@@ -102,12 +95,7 @@ class InferenceRunnerLiteRt : public InferenceRunner {
  private:
   // Explicitly clear the model packet to save peak memory.
   void ClearModelPacket() { model_packet_ = api2::Packet<TfLiteModelPtr>(); }
-#if defined(__EMSCRIPTEN__)
-  using MpTensorReadView =
-      std::variant<Tensor::CpuReadView, Tensor::WebGpuTexture2dView>;
-  using MpTensorWriteView =
-      std::variant<Tensor::CpuWriteView, Tensor::WebGpuTexture2dView>;
-#elif MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
+#if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
   using MpTensorReadView =
       std::variant<Tensor::CpuReadView, Tensor::OpenGlBufferView>;
   using MpTensorWriteView =
@@ -133,9 +121,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
 
   explicit InferenceRunnerLiteRt(
       MemoryManager* memory_manager,
-#if defined(__EMSCRIPTEN__)
-      WebGpuService* webgpu_service,
-#endif  // __EMSCRIPTEN__
       std::shared_ptr<mediapipe::GlContext> gl_context,
       api2::Packet<TfLiteModelPtr> model_packet,
       std::unique_ptr<litert::Environment> environment,
@@ -166,24 +151,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
       std::vector<InferenceRunnerLiteRt::MpTensorWriteView>&
           mp_output_tensor_views);
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
-
-#if defined(__EMSCRIPTEN__)
-  // Creates an input tensor buffer from a WebGPU texture with zero-copy.
-  absl::StatusOr<litert::TensorBuffer>
-  CreateWebGpuInputTensorBufferFromMpTensor(
-      const Tensor& mp_input_tensor,
-      const litert::RankedTensorType& tensor_type,
-      std::vector<InferenceRunnerLiteRt::MpTensorReadView>&
-          mp_input_tensor_views);
-
-  // Creates an output tensor buffer from a WebGPU texture with zero-copy.
-  absl::StatusOr<litert::TensorBuffer>
-  CreateWebGpuOutputTensorBufferFromMpTensor(
-      const Tensor& mp_output_tensor,
-      const litert::RankedTensorType& tensor_type,
-      std::vector<InferenceRunnerLiteRt::MpTensorWriteView>&
-          mp_output_tensor_views);
-#endif  // defined(__EMSCRIPTEN__)
 
   // Creates a ranked tensor type for the given input tensor. If the tensor is
   // dynamic the litert tensor type is resized to match the MP input tensor
@@ -270,10 +237,6 @@ class InferenceRunnerLiteRt : public InferenceRunner {
   }
 
   MemoryManager* memory_manager_ = nullptr;
-
-#if defined(__EMSCRIPTEN__)
-  const WebGpuService* webgpu_service_ = nullptr;
-#endif  // __EMSCRIPTEN__
 
   std::shared_ptr<mediapipe::GlContext> gl_context_;
 

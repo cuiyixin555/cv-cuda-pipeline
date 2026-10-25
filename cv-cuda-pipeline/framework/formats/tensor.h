@@ -41,16 +41,9 @@
 #include "cv-cuda-pipeline/gpu/gl_context.h"
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_check.h"
-#if MEDIAPIPE_USE_WEBGPU
-#include <webgpu/webgpu_cpp.h>
-
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_service.h"
-#endif  // MEDIAPIPE_USE_WEBGPU
-
 namespace mediapipe {
 // Tensor is a container of multi-dimensional data that supports sharing the
-// content across different backends and APIs: CPU, OpenGL, and WebGPU.
+// content across different backends and APIs: CPU and OpenGL.
 // Texture2DView is limited to 4 dimensions.
 // The content is accessible through requesting device specific views.
 // Acquiring a view guarantees that the content is not changed by another thread
@@ -224,32 +217,6 @@ class Tensor {
   OpenGlTexture2dView GetOpenGlTexture2dWriteView() const;
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
 
-#if MEDIAPIPE_USE_WEBGPU
-  class WebGpuTexture2dView : public View {
-   public:
-    WebGpuTexture2dView(WebGpuTexture2dView&& src)
-        : View(std::move(src.lock_)) {  // Only moves the View portion of src.
-      name_ = std::exchange(src.name_, nullptr);
-    }
-
-    wgpu::Texture name() const { return name_; }
-
-   protected:
-    friend class Tensor;
-
-    WebGpuTexture2dView(wgpu::Texture name,
-                        std::unique_ptr<absl::MutexLock>&& lock)
-        : View(std::move(lock)), name_(name) {}
-
-    wgpu::Texture name_;
-  };
-
-  WebGpuTexture2dView GetWebGpuTexture2dReadView(
-      const WebGpuService& service) const;
-  WebGpuTexture2dView GetWebGpuTexture2dWriteView(
-      const WebGpuService& service) const;
-#endif  // MEDIAPIPE_USE_WEBGPU
-
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
   class OpenGlBufferView : public View {
    public:
@@ -364,15 +331,11 @@ class Tensor {
 
   bool ready_on_cpu() const { return valid_ & kValidCpu; }
   bool ready_on_gpu() const {
-    return valid_ & (kValidOpenGlBuffer |
-                     kValidWebGpuTexture2d | kValidOpenGlTexture2d);
+    return valid_ & (kValidOpenGlBuffer | kValidOpenGlTexture2d);
   }
   bool ready_as_opengl_buffer() const { return valid_ & kValidOpenGlBuffer; }
   bool ready_as_opengl_texture_2d() const {
     return valid_ & kValidOpenGlTexture2d;
-  }
-  bool ready_as_webgpu_texture_2d() const {
-    return valid_ & kValidWebGpuTexture2d;
   }
 
  private:
@@ -425,7 +388,6 @@ class Tensor {
     kValidCpu = 1 << 0,
     kValidOpenGlBuffer = 1 << 2,
     kValidOpenGlTexture2d = 1 << 3,
-    kValidWebGpuTexture2d = 1 << 4,
   };
   // A list of resource which are currently allocated and synchronized between
   // each-other: valid_ = kValidCpu | kValidOpenGlBuffer;
@@ -436,11 +398,6 @@ class Tensor {
   mutable void* cpu_buffer_ = nullptr;
   absl::Status AllocateCpuBuffer() const;
   void FreeCpuBuffer() const;
-
-#if MEDIAPIPE_USE_WEBGPU
-  mutable wgpu::Device webgpu_device_;
-  mutable wgpu::Texture webgpu_texture2d_;
-#endif  // MEDIAPIPE_USE_WEBGPU
 
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_30
   mutable std::shared_ptr<mediapipe::GlContext> gl_context_;

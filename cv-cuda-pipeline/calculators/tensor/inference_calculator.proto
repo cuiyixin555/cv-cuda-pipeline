@@ -45,25 +45,6 @@ message InferenceCalculatorOptions {
   message Delegate {
     // Default inference provided by tflite.
     message TfLite {}
-    message WebNn {
-      enum DeviceType {
-        DEFAULT_CPU = 0;  // Default if unspecified.
-        GPU = 1;
-        NPU = 2;
-      }
-      optional DeviceType device_type = 1;
-
-      enum PowerPreference {
-        DEFAULT = 0;  // Default if unspecified.
-        HIGH_PERFORMANCE = 1;
-        LOW_POWER = 2;
-      }
-      optional PowerPreference power_preference = 2;
-
-      // Set to true to use 16-bit float precision. If max precision is
-      // needed, set to false to prefer 32-bit float calculations.
-      optional bool allow_precision_loss = 3;
-    }
     // Delegate to run GPU inference depending on the device.
     // (Can use OpenGL or OpenCL depending on the device.)
     message Gpu {
@@ -126,8 +107,7 @@ message InferenceCalculatorOptions {
       }
       optional InferenceUsage usage = 5 [default = SUSTAINED_SPEED];
 
-      // Experimental support for WebNN delegate for GPU/NPU mode.
-      optional WebNn webnn = 13;
+      reserved 13;
     }
 
     message Xnnpack {
@@ -228,7 +208,7 @@ message InferenceCalculatorOptions {
           AUTOMATIC = 0;
           OPENGL = 1;
           OPENCL = 2;
-          WEBGPU = 3;
+          reserved 3;
         }
         optional Backend backend = 3 [default = AUTOMATIC];
         optional bool hint_fully_delegated_to_single_delegate = 4
@@ -268,7 +248,7 @@ message InferenceCalculatorOptions {
           optional string model_cache_key = 3;
           // Only takes effect when serialize_program_cache = true.
           // If true, only compiled GPU shader/kernel programs will be cached.
-          // Supported for OpenCL and WebGPU backends.
+          // Supported for the OpenCL backend.
           // If false, full GPU model graph and serialized data will be cached.
           optional bool cache_only_compiled_programs = 4 [default = false];
           // File descriptor to read and write the program cache from. If set,
@@ -369,7 +349,7 @@ message InferenceCalculatorOptions {
         // has completed. Only meaningful if convert_weights_on_gpu is true.
         optional bool wait_for_weights_conversion_complete = 22;
 
-        // WebGPU and Vulkan only.
+        // Vulkan only.
         //
         // Number of steps to prepare command buffers in advance:
         //   0 (default): No command buffer preparation in advance. Must be used
@@ -393,17 +373,7 @@ message InferenceCalculatorOptions {
         }
         optional OpenCl opencl = 28;
 
-        message WebGpu {
-          // Preferred WebGPU device name substring, case-insensitive. If set,
-          // the adapter whose device name contains this substring is chosen.
-          // Otherwise the device is determined by other factors.
-          optional string preferred_device_substr = 1;
-          // Number of threads used for WebGPU upload.
-          optional int32 num_threads_to_upload = 2;
-          // Number of threads used for WebGPU kernel shader compilation.
-          optional int32 num_threads_to_compile = 3;
-        }
-        optional WebGpu webgpu = 29;
+        reserved 29;
 
         message Vulkan {
           // If true, kernel shader optimization is disabled, which reduces
@@ -464,9 +434,7 @@ message InferenceCalculatorOptions {
       }
       optional Npu npu = 10;
 
-      // LiteRt::Webnn Accelerator.
-      message Webnn {}
-      optional Webnn webnn = 11;
+      reserved 11;
 
       // Which model signature to use. If no signature is specified, the default
       // signature is used.
@@ -524,8 +492,7 @@ message InferenceCalculatorOptions {
   // If not specified, TFLite GPU delegate is used by default (as if "gpu {}"
   // is specified) unless GPU support is disabled in the build (i.e., with
   // --define MEDIAPIPE_DISABLE_GPU=1), in which case regular TFLite on CPU is
-  // used (as if "tflite {}" is specified) except when building with emscripten
-  // where xnnpack is used.
+  // used (as if "tflite {}" is specified).
   // NOTE: use_gpu is ignored if specified. (Delegate takes
   // precedence over use_* deprecated options.)
   optional Delegate delegate = 5;

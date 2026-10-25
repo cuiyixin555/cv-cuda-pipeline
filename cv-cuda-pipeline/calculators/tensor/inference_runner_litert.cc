@@ -66,10 +66,6 @@
 #endif
 
 
-#if defined(__EMSCRIPTEN__)
-#include "cv-cuda-pipeline/gpu/webgpu/webgpu_service.h"
-#endif  // __EMSCRIPTEN__
-
 namespace mediapipe {
 
 namespace {
@@ -78,7 +74,6 @@ namespace {
 // Note: Order indicates the priority of the buffer type, i.e. the order in
 // which LiteRT's buffer requirements will be checked.
 constexpr litert::TensorBufferType kPreferredBufferTypes[] = {
-    litert::TensorBufferType::kWebGpuTexture,
     litert::TensorBufferType::kHostMemory,
     litert::TensorBufferType::kFastRpc,
     litert::TensorBufferType::kDmaBuf,
@@ -86,8 +81,6 @@ constexpr litert::TensorBufferType kPreferredBufferTypes[] = {
     litert::TensorBufferType::kOpenClTextureFp16,
     litert::TensorBufferType::kOpenClBuffer,
     litert::TensorBufferType::kOpenClBufferPacked,
-    litert::TensorBufferType::kWebGpuBuffer,
-    litert::TensorBufferType::kWebGpuBufferPacked,
 };
 
 // Buffer types that require copying to/from the MP tensor and are managed by
@@ -98,8 +91,6 @@ constexpr litert::TensorBufferType kLiteRtManagedBufferTypes[] = {
     litert::TensorBufferType::kOpenClBuffer,
     litert::TensorBufferType::kOpenClTextureFp16,
     litert::TensorBufferType::kOpenClBufferPacked,
-    litert::TensorBufferType::kWebGpuBuffer,
-    litert::TensorBufferType::kWebGpuBufferPacked,
 };
 
 absl::StatusOr<litert::qualcomm::QualcommOptions::HtpPerformanceMode>
@@ -198,11 +189,6 @@ absl::StatusOr<litert::HwAcceleratorSet> GetLiteRtHwAccelerators(
   if (options.has_npu()) {
     accelerators |= litert::HwAccelerators::kNpu;
   }
-#if defined(__EMSCRIPTEN__)
-  if (options.has_webnn()) {
-    accelerators = accelerators | litert::HwAccelerators::kWebNn;
-  }
-#endif  // __EMSCRIPTEN__
   if (accelerators.value == static_cast<int>(litert::HwAccelerators::kNone)) {
     return absl::InvalidArgumentError("No accelerator is specified");
   }
@@ -212,9 +198,6 @@ absl::StatusOr<litert::HwAcceleratorSet> GetLiteRtHwAccelerators(
 absl::StatusOr<litert::Environment> InitializeLiteRtEnvironment(
     const InferenceCalculatorOptions::Delegate::LiteRt& options,
     const mediapipe::GlContext* gl_context,
-#if defined(__EMSCRIPTEN__)
-    WebGpuService* webgpu_service,
-#endif  // __EMSCRIPTEN__
     LiteRtSystemHandles system_handles) {
   std::vector<litert::EnvironmentOptions::Option> environment_options;
   if (options.has_npu()) {
@@ -231,21 +214,6 @@ absl::StatusOr<litert::Environment> InitializeLiteRtEnvironment(
       });
     }
   }
-
-#if defined(__EMSCRIPTEN__)
-  if (webgpu_service != nullptr) {
-    const wgpu::Device& device = webgpu_service->device();
-    environment_options.push_back(litert::EnvironmentOptions::Option{
-        /*.tag=*/litert::EnvironmentOptions::Tag::kWebGpuDevice,
-        /*.value=*/reinterpret_cast<int64_t>(device.Get()),
-    });
-    environment_options.push_back(litert::EnvironmentOptions::Option{
-        /*.tag=*/litert::EnvironmentOptions::Tag::kWebGpuQueue,
-        /*.value=*/reinterpret_cast<int64_t>(device.GetQueue().Get()),
-    });
-  }
-
-#endif  // defined(__EMSCRIPTEN__)
 
 #if MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
   if (gl_context != nullptr) {
@@ -304,16 +272,10 @@ InferenceRunnerLiteRt::Create(
             input_output_config,
     MemoryManager* memory_manager,
     std::shared_ptr<mediapipe::GlContext> gl_context,
-#if defined(__EMSCRIPTEN__)
-    WebGpuService* webgpu_service,
-#endif  // __EMSCRIPTEN__
     std::optional<litert::Options> litert_options,
     LiteRtSystemHandles system_handles) {
   ABSL_ASSIGN_OR_RETURN(auto environment, InitializeLiteRtEnvironment(
                                               options, gl_context.get(),
-#if defined(__EMSCRIPTEN__)
-                                              webgpu_service,
-#endif  // __EMSCRIPTEN__
                                               system_handles));
 
   // LiteRT does not copy the model buffer, so the model packet must outlive
@@ -389,9 +351,6 @@ InferenceRunnerLiteRt::Create(
           break;
         case InferenceCalculatorOptions::Delegate::LiteRt::Gpu::AUTOMATIC:
           gpu_options.SetBackend(litert::GpuOptions::Backend::kAutomatic);
-          break;
-        case InferenceCalculatorOptions::Delegate::LiteRt::Gpu::WEBGPU:
-          gpu_options.SetBackend(litert::GpuOptions::Backend::kWebGpu);
           break;
         default:
           return absl::InvalidArgumentError("Unsupported GPU backend");
@@ -549,21 +508,6 @@ InferenceRunnerLiteRt::Create(
             gpu_options.SetKernelBatchSize(opencl.kernel_batch_size()));
       }
     }
-    if (options.gpu().has_webgpu()) {
-      const auto& webgpu = options.gpu().webgpu();
-      if (webgpu.has_preferred_device_substr()) {
-        LITERT_RETURN_IF_ERROR(gpu_options.SetPreferredDeviceSubstr(
-            webgpu.preferred_device_substr().c_str()));
-      }
-      if (webgpu.has_num_threads_to_upload()) {
-        LITERT_RETURN_IF_ERROR(
-            gpu_options.SetNumThreadsToUpload(webgpu.num_threads_to_upload()));
-      }
-      if (webgpu.has_num_threads_to_compile()) {
-        LITERT_RETURN_IF_ERROR(gpu_options.SetNumThreadsToCompile(
-            webgpu.num_threads_to_compile()));
-      }
-    }
     if (options.gpu().has_vulkan() &&
         options.gpu().vulkan().has_disable_shader_optimization()) {
       LITERT_RETURN_IF_ERROR(gpu_options.DisableShaderOptimization(
@@ -667,9 +611,6 @@ InferenceRunnerLiteRt::Create(
   auto runner =
       std::unique_ptr<InferenceRunnerLiteRt>(new InferenceRunnerLiteRt(
           memory_manager,
-#if defined(__EMSCRIPTEN__)
-          webgpu_service,
-#endif  // __EMSCRIPTEN__
           std::move(gl_context), std::move(model_packet),
           std::make_unique<litert::Environment>(std::move(environment)),
           std::make_unique<litert::CompiledModel>(std::move(compiled_model)),
@@ -701,9 +642,6 @@ InferenceRunnerLiteRt::Create(
 
 InferenceRunnerLiteRt::InferenceRunnerLiteRt(
     MemoryManager* memory_manager,
-#if defined(__EMSCRIPTEN__)
-    WebGpuService* webgpu_service,
-#endif  // __EMSCRIPTEN__
     std::shared_ptr<mediapipe::GlContext> gl_context,
     api2::Packet<TfLiteModelPtr> model_packet,
     std::unique_ptr<litert::Environment> environment,
@@ -715,9 +653,6 @@ InferenceRunnerLiteRt::InferenceRunnerLiteRt(
     std::unique_ptr<InferenceFeedbackManagerLiteRt> feedback_manager
     )
     : memory_manager_(memory_manager),
-#if defined(__EMSCRIPTEN__)
-      webgpu_service_(webgpu_service),
-#endif  // __EMSCRIPTEN__
       gl_context_(std::move(gl_context)),
       model_packet_(std::move(model_packet)),
       environment_(std::move(environment)),
@@ -870,40 +805,6 @@ InferenceRunnerLiteRt::CreateGlOutputTensorBufferFromMpTensor(
 }
 #endif
 
-#if defined(__EMSCRIPTEN__)
-absl::StatusOr<litert::TensorBuffer>
-InferenceRunnerLiteRt::CreateWebGpuInputTensorBufferFromMpTensor(
-    const Tensor& mp_input_tensor, const litert::RankedTensorType& tensor_type,
-    std::vector<InferenceRunnerLiteRt::MpTensorReadView>&
-        mp_input_tensor_views) {
-  auto input_tensor_view =
-      mp_input_tensor.GetWebGpuTexture2dReadView(*webgpu_service_);
-  LITERT_ASSIGN_OR_RETURN(
-      auto litert_buffer,
-      litert::TensorBuffer::CreateFromWebGpuTexture(
-          *environment_, tensor_type, input_tensor_view.name().Get(),
-          mp_input_tensor.bytes()));
-  mp_input_tensor_views.push_back(std::move(input_tensor_view));
-  return litert_buffer;
-}
-
-absl::StatusOr<litert::TensorBuffer>
-InferenceRunnerLiteRt::CreateWebGpuOutputTensorBufferFromMpTensor(
-    const Tensor& mp_output_tensor, const litert::RankedTensorType& tensor_type,
-    std::vector<InferenceRunnerLiteRt::MpTensorWriteView>&
-        mp_output_tensor_views) {
-  auto output_tensor_view =
-      mp_output_tensor.GetWebGpuTexture2dWriteView(*webgpu_service_);
-  LITERT_ASSIGN_OR_RETURN(
-      auto litert_buffer,
-      litert::TensorBuffer::CreateFromWebGpuTexture(
-          *environment_, tensor_type, output_tensor_view.name().Get(),
-          mp_output_tensor.bytes()));
-  mp_output_tensor_views.push_back(std::move(output_tensor_view));
-  return litert_buffer;
-}
-#endif  // defined(__EMSCRIPTEN__)
-
 
 
 absl::StatusOr<litert::TensorBuffer>
@@ -977,16 +878,6 @@ InferenceRunnerLiteRt::CreateInputTensorBufferFromMpTensor(
       return CreateGlInputTensorBufferFromMpTensor(tensor, tensor_type,
                                                    ctx.active_input_views);
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
-#if defined(__EMSCRIPTEN__)
-    case litert::TensorBufferType::kWebGpuTexture:
-      if (webgpu_service_ != nullptr) {
-        return CreateWebGpuInputTensorBufferFromMpTensor(
-            tensor, tensor_type, ctx.active_input_views);
-      } else {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported buffer type to create input tensor: ", buffer_type));
-      }
-#endif  // defined(__EMSCRIPTEN__)
     default:
       return absl::InvalidArgumentError(absl::StrCat(
           "Unsupported buffer type to create input tensor: ", buffer_type));
@@ -1198,16 +1089,6 @@ InferenceRunnerLiteRt::CreateOutputTensorBufferFromMpTensor(
       return CreateGlOutputTensorBufferFromMpTensor(tensor, tensor_type,
                                                     ctx.active_output_views);
 #endif  // MEDIAPIPE_OPENGL_ES_VERSION >= MEDIAPIPE_OPENGL_ES_31
-#if defined(__EMSCRIPTEN__)
-    case litert::TensorBufferType::kWebGpuTexture:
-      if (webgpu_service_ != nullptr) {
-        return CreateWebGpuOutputTensorBufferFromMpTensor(
-            tensor, tensor_type, ctx.active_output_views);
-      } else {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported buffer type to create output tensor: ", buffer_type));
-      }
-#endif  // defined(__EMSCRIPTEN__)
     default:
       return absl::InvalidArgumentError(absl::StrCat(
           "Unsupported buffer type to create output tensor: ", buffer_type));

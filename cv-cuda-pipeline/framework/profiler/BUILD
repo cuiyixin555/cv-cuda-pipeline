@@ -101,7 +101,6 @@ cc_library(
         ":profiler_resource_util",
         ":sharded_map",
         ":trace_buffer",
-        ":web_performance_profiling",
         "//cv-cuda-pipeline/framework:calculator_cc_proto",
         "//cv-cuda-pipeline/framework:calculator_context",
         "//cv-cuda-pipeline/framework:calculator_profile_cc_proto",
@@ -272,25 +271,6 @@ cc_test(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
     ],
-)
-
-config_setting(
-    name = "mediapipe_web_profiling_enabled",
-    values = {
-        "define": "MEDIAPIPE_WEB_PROFILING=1",
-    },
-    visibility = ["//visibility:private"],
-)
-
-cc_library(
-    name = "web_performance_profiling",
-    hdrs = ["web_performance_profiling.h"],
-    defines = select({
-        ":mediapipe_web_profiling_enabled": ["MEDIAPIPE_WEB_PROFILING_ENABLED"],
-        "//conditions:default": [],
-    }),
-    visibility = ["//cv-cuda-pipeline:__subpackages__"],
-    deps = ["@com_google_absl//absl/strings"],
 )
 
 cc_library(

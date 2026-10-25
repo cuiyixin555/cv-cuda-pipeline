@@ -282,8 +282,7 @@ class Calculator : public CalculatorBase,
           CalculatorContract<NodeT>::UpdateContract(specialized_contract));
     }
 
-    // Optional contract update from implementation, e.g. requesting
-    // WebGpuService or GpuService.
+    // Optional contract update from implementation, e.g. requesting GpuService.
     if constexpr (kHasUpdateContract<ImplT, CalculatorContract<NodeT>>) {
       store_status(ImplT::UpdateContract(specialized_contract));
     }

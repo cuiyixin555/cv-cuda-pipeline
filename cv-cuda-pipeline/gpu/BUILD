@@ -78,13 +78,7 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-GL_BASE_LINK_OPTS = select({
-    "//conditions:default": [],
-    "//cv-cuda-pipeline:emscripten": [
-        # Needed for symbols such as glFenceSync.
-        "-s MAX_WEBGL_VERSION=2",
-    ],
-})
+GL_BASE_LINK_OPTS = []
 
 # This is @unused internally.
 GL_BASE_LINK_OPTS_OSS = GL_BASE_LINK_OPTS + select({
@@ -105,7 +99,6 @@ cc_library(
     textual_hdrs = ["gl_base.h"],
     visibility = ["//visibility:public"],
     deps = [":gl_base_hdr"] + select({
-        "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
         ],
     }),
@@ -125,7 +118,6 @@ cc_library(
     linkopts = [],
     visibility = ["//visibility:public"],
     deps = select({
-        "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
             "@linux_opencv//:egl_gles_headers",
         ],
@@ -154,9 +146,6 @@ cc_library(
     ] + select({
         "//conditions:default": [
             "gl_context_egl.cc",
-        ],
-        "//cv-cuda-pipeline:emscripten": [
-            "gl_context_webgl.cc",
         ],
     }),
     hdrs = ["gl_context.h"],
@@ -202,8 +191,6 @@ cc_library(
         "@com_google_absl//absl/types:span",
     ] + [] + select({
         "//conditions:default": [
-        ],
-        "//cv-cuda-pipeline:emscripten": [
         ],
     }),
 )

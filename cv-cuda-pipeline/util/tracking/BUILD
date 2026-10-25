@@ -198,10 +198,7 @@ cc_library(
     ],
 )
 
-PARALLEL_COPTS = ["-DPARALLEL_INVOKER_ACTIVE"] + select({
-    "//cv-cuda-pipeline:emscripten": ["-UPARALLEL_INVOKER_ACTIVE"],
-    "//conditions:default": [],
-})
+PARALLEL_COPTS = ["-DPARALLEL_INVOKER_ACTIVE"]
 
 PARALLEL_LINKOPTS = []
 

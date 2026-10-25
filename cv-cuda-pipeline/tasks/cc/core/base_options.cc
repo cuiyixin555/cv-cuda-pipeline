@@ -83,8 +83,6 @@ ProtoGpu::Backend ConvertGpuBackendToProto(
       return ProtoGpu::OPENGL;
     case BaseOptions::GpuOptions::Backend::OPENCL:
       return ProtoGpu::OPENCL;
-    case BaseOptions::GpuOptions::Backend::WEBGPU:
-      return ProtoGpu::WEBGPU;
   }
   return ProtoGpu::AUTOMATIC;
 }
@@ -98,8 +96,6 @@ BaseOptions::GpuOptions::Backend ConvertProtoToGpuBackend(
       return BaseOptions::GpuOptions::Backend::OPENGL;
     case ProtoGpu::OPENCL:
       return BaseOptions::GpuOptions::Backend::OPENCL;
-    case ProtoGpu::WEBGPU:
-      return BaseOptions::GpuOptions::Backend::WEBGPU;
   }
   return BaseOptions::GpuOptions::Backend::AUTOMATIC;
 }

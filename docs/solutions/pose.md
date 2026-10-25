@@ -47,7 +47,7 @@ research that also powers the
 Current state-of-the-art approaches rely primarily on powerful desktop
 environments for inference, whereas our method achieves real-time performance on
 most modern [mobile phones](#mobile), [desktops/laptops](#desktop), in
-[python](#python-solution-api) and even on the [web](#javascript-solution-api).
+[Python](#python-solution-api).
 
 ![pose_tracking_example.gif](https://mediapipe.dev/images/mobile/pose_tracking_example.gif) |
 :----------------------------------------------------------------------: |
@@ -345,106 +345,6 @@ with mp_pose.Pose(
     if cv2.waitKey(5) & 0xFF == 27:
       break
 cap.release()
-```
-
-### JavaScript Solution API
-
-Please first see general [introduction](../getting_started/javascript.md) on
-MediaPipe in JavaScript, then learn more in the companion [web demo](#resources)
-and the following usage example.
-
-Supported configuration options:
-
-*   [modelComplexity](#model_complexity)
-*   [smoothLandmarks](#smooth_landmarks)
-*   [enableSegmentation](#enable_segmentation)
-*   [smoothSegmentation](#smooth_segmentation)
-*   [minDetectionConfidence](#min_detection_confidence)
-*   [minTrackingConfidence](#min_tracking_confidence)
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d/control_utils_3d.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-</head>
-
-<body>
-  <div class="container">
-    <video class="input_video"></video>
-    <canvas class="output_canvas" width="1280px" height="720px"></canvas>
-    <div class="landmark-grid-container"></div>
-  </div>
-</body>
-</html>
-```
-
-```javascript
-<script type="module">
-const videoElement = document.getElementsByClassName('input_video')[0];
-const canvasElement = document.getElementsByClassName('output_canvas')[0];
-const canvasCtx = canvasElement.getContext('2d');
-const landmarkContainer = document.getElementsByClassName('landmark-grid-container')[0];
-const grid = new LandmarkGrid(landmarkContainer);
-
-function onResults(results) {
-  if (!results.poseLandmarks) {
-    grid.updateLandmarks([]);
-    return;
-  }
-
-  canvasCtx.save();
-  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  canvasCtx.drawImage(results.segmentationMask, 0, 0,
-                      canvasElement.width, canvasElement.height);
-
-  // Only overwrite existing pixels.
-  canvasCtx.globalCompositeOperation = 'source-in';
-  canvasCtx.fillStyle = '#00FF00';
-  canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-
-  // Only overwrite missing pixels.
-  canvasCtx.globalCompositeOperation = 'destination-atop';
-  canvasCtx.drawImage(
-      results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-  canvasCtx.globalCompositeOperation = 'source-over';
-  drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
-                 {color: '#00FF00', lineWidth: 4});
-  drawLandmarks(canvasCtx, results.poseLandmarks,
-                {color: '#FF0000', lineWidth: 2});
-  canvasCtx.restore();
-
-  grid.updateLandmarks(results.poseWorldLandmarks);
-}
-
-const pose = new Pose({locateFile: (file) => {
-  return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-}});
-pose.setOptions({
-  modelComplexity: 1,
-  smoothLandmarks: true,
-  enableSegmentation: true,
-  smoothSegmentation: true,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
-});
-pose.onResults(onResults);
-
-const camera = new Camera(videoElement, {
-  onFrame: async () => {
-    await pose.send({image: videoElement});
-  },
-  width: 1280,
-  height: 720
-});
-camera.start();
-</script>
 ```
 
 ## Example Apps

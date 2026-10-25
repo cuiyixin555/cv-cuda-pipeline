@@ -20,9 +20,8 @@
 
 // These platforms do not support OpenGL ES Compute Shaders (v3.1 and up),
 // but may or may not still be able to run other OpenGL code.
-#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) &&            \
-    (defined(__EMSCRIPTEN__) || MEDIAPIPE_DISABLE_GPU || \
-     MEDIAPIPE_USING_LEGACY_SWIFTSHADER)
+#if !defined(MEDIAPIPE_DISABLE_GL_COMPUTE) && \
+    (MEDIAPIPE_DISABLE_GPU || MEDIAPIPE_USING_LEGACY_SWIFTSHADER)
 #define MEDIAPIPE_DISABLE_GL_COMPUTE
 #endif
 
@@ -38,19 +37,8 @@
 // TODO: identify and fix code where macro is used incorrectly.
 #if MEDIAPIPE_DISABLE_GPU
 #define MEDIAPIPE_OPENGL_ES_VERSION 0
-#elif defined(__EMSCRIPTEN__)
-// WebGL config.
-#define MEDIAPIPE_OPENGL_ES_VERSION MEDIAPIPE_OPENGL_ES_30
-#else
-#if MEDIAPIPE_USE_WEBGPU
-// TODO: `MEDIAPIPE_USE_WEBGPU` does not necessarily imply
-// anything about the GLES versions. But despite that, as a temporary
-// measure, setting GLES version to 0 would save a lot of work for the
-// current OSS efforts.
-#define MEDIAPIPE_OPENGL_ES_VERSION 0
 #else
 #define MEDIAPIPE_OPENGL_ES_VERSION MEDIAPIPE_OPENGL_ES_31
-#endif
 #endif
 
 #ifndef MEDIAPIPE_HAS_RTTI

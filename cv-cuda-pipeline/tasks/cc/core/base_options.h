@@ -76,7 +76,6 @@ struct BaseOptions {
       AUTOMATIC = 0,
       OPENGL = 1,
       OPENCL = 2,
-      WEBGPU = 3,
     };
     Backend backend = AUTOMATIC;
 

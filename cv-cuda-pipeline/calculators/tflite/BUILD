@@ -222,7 +222,6 @@ cc_library(
     }) + select({
         "//conditions:default": [],
     }) + select({
-        "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
             "//cv-cuda-pipeline/util:cpu_util",
         ],
@@ -401,8 +400,6 @@ cc_library(
         "@com_google_absl//absl/types:span",
         "@litert//tflite:framework",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],

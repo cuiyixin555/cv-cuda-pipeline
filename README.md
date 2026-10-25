@@ -3,7 +3,10 @@
 ![CV-CUDA Pipeline banner](asserts/cv-cuda-pipeline.png)
 
 CV-CUDA Pipeline is a C++ computer-vision project for building and running
-real-time image and video processing graphs. It uses Bazel to manage native
+real-time image and video processing graphs on Linux and Windows PCs.
+The product scope is desktop C++/CUDA only: mobile apps, browser frontends,
+TypeScript/JavaScript task APIs, and WebGPU backends are not included.
+It uses Bazel to manage native
 code, models, and third-party dependencies. The repository includes desktop
 examples for tasks such as face detection, hand tracking, object detection,
 and image segmentation.

@@ -582,9 +582,6 @@ load("@//third_party:external_files.bzl", "external_files")
 
 external_files()
 
-load("@//third_party:wasm_files.bzl", "wasm_files")
-
-wasm_files()
 
 load("@//third_party:sqlite_prebuilt_files.bzl", "sqlite_prebuilt_files")
 

@@ -127,7 +127,6 @@ cc_library(
             "//cv-cuda-pipeline/framework/deps:image_resizer",
             "//cv-cuda-pipeline/framework/port:opencv_core",
         ],
-        "//cv-cuda-pipeline:emscripten": ["//cv-cuda-pipeline/framework/deps:image_resizer"],
     }),
 )
 
@@ -446,7 +445,6 @@ cc_library(
     hdrs = ["threadpool.h"],
     deps = select({
         "//conditions:default": [":threadpool_impl_default_to_google"],
-        "//cv-cuda-pipeline:emscripten": [":threadpool_impl_default_to_mediapipe"],
     }),
 )
 

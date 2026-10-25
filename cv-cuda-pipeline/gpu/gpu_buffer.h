@@ -29,8 +29,7 @@
 #if !MEDIAPIPE_DISABLE_GPU
 #include "cv-cuda-pipeline/gpu/gl_texture_view.h"
 // Note: these headers are needed for the legacy storage APIs. Do not add more
-// storage-specific headers here. See WebGpuTextureBuffer/View for an example
-// of adding a new storage and view.
+// storage-specific headers here.
 
 
 #include "cv-cuda-pipeline/gpu/gl_texture_buffer.h"

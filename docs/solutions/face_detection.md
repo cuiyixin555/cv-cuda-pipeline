@@ -61,25 +61,6 @@ used for its improved inference speed. Please refer to the
 [model cards](./models.md#face_detection) for details. Default to `0` if not
 specified.
 
-Note: Not available for JavaScript (use "model" instead).
-
-#### model
-
-A string value to indicate which model should be used. Use "short" to
-select a short-range model that works best for faces within 2 meters from the
-camera, and "full" for a full-range model best for faces within 5 meters. For
-the full-range option, a sparse model is used for its improved inference speed.
-Please refer to the model cards for details. Default to empty string.
-
-Note: Valid only for JavaScript solution.
-
-#### selfie_mode
-
-A boolean value to indicate whether to flip the images/video frames
-horizontally or not. Default to `false`.
-
-Note: Valid only for JavaScript solution.
-
 #### min_detection_confidence
 
 Minimum confidence value (`[0.0, 1.0]`) from the face detection model for the
@@ -164,82 +145,6 @@ with mp_face_detection.FaceDetection(
     if cv2.waitKey(5) & 0xFF == 27:
       break
 cap.release()
-```
-
-### JavaScript Solution API
-
-Please first see general [introduction](../getting_started/javascript.md) on
-MediaPipe in JavaScript, then learn more in the companion [web demo](#resources)
-and the following usage example.
-
-Supported face detection options:
-*   [selfieMode](#selfie_mode)
-*   [model](#model)
-*   [minDetectionConfidence](#min_detection_confidence)
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
-</head>
-
-<body>
-  <div class="container">
-    <video class="input_video"></video>
-    <canvas class="output_canvas" width="1280px" height="720px"></canvas>
-  </div>
-</body>
-</html>
-```
-
-```javascript
-<script type="module">
-const videoElement = document.getElementsByClassName('input_video')[0];
-const canvasElement = document.getElementsByClassName('output_canvas')[0];
-const canvasCtx = canvasElement.getContext('2d');
-const drawingUtils = window;
-
-function onResults(results) {
-  // Draw the overlays.
-  canvasCtx.save();
-  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  canvasCtx.drawImage(
-      results.image, 0, 0, canvasElement.width, canvasElement.height);
-  if (results.detections.length > 0) {
-    drawingUtils.drawRectangle(
-        canvasCtx, results.detections[0].boundingBox,
-        {color: 'blue', lineWidth: 4, fillColor: '#00000000'});
-    drawingUtils.drawLandmarks(canvasCtx, results.detections[0].landmarks, {
-      color: 'red',
-      radius: 5,
-    });
-  }
-  canvasCtx.restore();
-}
-
-const faceDetection = new FaceDetection({locateFile: (file) => {
-  return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@0.0/${file}`;
-}});
-faceDetection.setOptions({
-  model: 'short',
-  minDetectionConfidence: 0.5
-});
-faceDetection.onResults(onResults);
-
-const camera = new Camera(videoElement, {
-  onFrame: async () => {
-    await faceDetection.send({image: videoElement});
-  },
-  width: 1280,
-  height: 720
-});
-camera.start();
-</script>
 ```
 
 ## Example Apps

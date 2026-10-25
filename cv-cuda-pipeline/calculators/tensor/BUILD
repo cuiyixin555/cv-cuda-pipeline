@@ -827,11 +827,6 @@ cc_library(
         "@litert//litert/cc/options:litert_gpu_options",
         "@litert//litert/cc/options:litert_qualcomm_options",
     ] + select({
-        "//cv-cuda-pipeline/gpu/webgpu:use_webgpu": [
-            "//cv-cuda-pipeline/gpu/webgpu:webgpu_service",
-        ],
-        "//conditions:default": [],
-    }) + select({
         "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": [
             "//cv-cuda-pipeline/gpu:gl_context",
@@ -971,7 +966,6 @@ cc_library(
         "@litert//tflite/c:common",
         "@litert//tflite/core:framework",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
             "//cv-cuda-pipeline/util:cpu_util",
         ],
@@ -1436,8 +1430,6 @@ cc_library(
         "@com_google_absl//absl/strings:string_view",
         "@com_google_absl//absl/types:span",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -1547,7 +1539,6 @@ cc_library(
         "//cv-cuda-pipeline/framework/port:statusor",
         "//cv-cuda-pipeline/gpu:gpu_origin_cc_proto",
         "//cv-cuda-pipeline/gpu:gpu_origin_utils",
-        "//cv-cuda-pipeline/gpu/webgpu:webgpu_check",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
@@ -1571,24 +1562,12 @@ cc_library(
     name = "image_to_tensor_calculator_gpu_deps",
     visibility = ["//visibility:private"],
     deps = selects.with_or({
-        "//cv-cuda-pipeline:emscripten": [
-            ":image_to_tensor_converter_gl_texture",
-            "//cv-cuda-pipeline/gpu:gl_calculator_helper",
-            "//cv-cuda-pipeline/gpu:gpu_buffer",
-            "//cv-cuda-pipeline/gpu:gpu_service",
-        ],
         "//conditions:default": [
             ":image_to_tensor_converter_gl_buffer",
             "//cv-cuda-pipeline/gpu:gl_calculator_helper",
             "//cv-cuda-pipeline/gpu:gpu_buffer",
             "//cv-cuda-pipeline/gpu:gpu_service",
         ],
-    }) + select({
-        "//cv-cuda-pipeline/gpu/webgpu:use_webgpu": [
-            "//cv-cuda-pipeline/gpu/webgpu:image_to_tensor_converter_webgpu_texture",
-            "//cv-cuda-pipeline/gpu/webgpu:webgpu_texture_buffer",
-        ],
-        "//conditions:default": [],
     }),
 )
 
@@ -1663,7 +1642,6 @@ cc_library(
     hdrs = ["image_to_tensor_converter_gl_buffer.h"],
     visibility = ["//visibility:private"],
     deps = ["//cv-cuda-pipeline/framework:port"] + selects.with_or({
-        "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
             ":image_to_tensor_converter",
             ":image_to_tensor_converter_gl_utils",
@@ -1695,7 +1673,7 @@ cc_library(
     name = "image_to_tensor_converter_gl_texture",
     srcs = ["image_to_tensor_converter_gl_texture.cc"],
     hdrs = ["image_to_tensor_converter_gl_texture.h"],
-    visibility = ["//cv-cuda-pipeline/gpu/webgpu:__subpackages__"],
+    visibility = ["//visibility:private"],
     deps = ["//cv-cuda-pipeline/framework:port"] + select({
         "//cv-cuda-pipeline/gpu:disable_gpu": [],
         "//conditions:default": [
@@ -1832,10 +1810,6 @@ cc_library(
     name = "tensors_to_segmentation_calculator_gpu_deps",
     visibility = ["//visibility:private"],
     deps = selects.with_or({
-        "//cv-cuda-pipeline:emscripten": [
-            ":tensors_to_segmentation_converter_gl_texture",
-            "//cv-cuda-pipeline/gpu:gl_calculator_helper",
-        ],
         # This setting is needed to allow bazel to build all targets on Mac with GPU disabled
         "//conditions:default": [
             ":tensors_to_segmentation_converter_gl_buffer",
@@ -1948,7 +1922,6 @@ cc_library(
     hdrs = ["tensors_to_segmentation_converter_gl_buffer.h"],
     visibility = ["//visibility:private"],
     deps = ["//cv-cuda-pipeline/framework:port"] + selects.with_or({
-        "//cv-cuda-pipeline:emscripten": [],
         "//conditions:default": [
             ":tensors_to_segmentation_calculator_cc_proto",
             ":tensors_to_segmentation_converter",

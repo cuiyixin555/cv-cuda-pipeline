@@ -324,8 +324,6 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:string_view",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -366,8 +364,6 @@ cc_library(
         "//cv-cuda-pipeline/util/tracking:box_tracker_cc_proto",
         "@com_google_absl//absl/container:node_hash_map",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],
@@ -1181,8 +1177,6 @@ cc_library(
         "//cv-cuda-pipeline/util:resource_util",
         "@com_google_absl//absl/container:node_hash_map",
     ] + select({
-        "//cv-cuda-pipeline:emscripten": [
-        ],
         "//conditions:default": [
             "//cv-cuda-pipeline/framework/port:file_helpers",
         ],

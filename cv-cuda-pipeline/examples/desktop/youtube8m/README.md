@@ -101,34 +101,6 @@
       --output_side_packets_file=/tmp/yt8m_id
     ```
 
-### Steps to run the YouTube-8M model inference graph with Web Interface
-
-1.  Copy the baseline model [(model card)](https://drive.google.com/file/d/1xTCi9-Nm9dt2KIk8WR0dDFrIssWawyXy/view) to local.
-
-
-    ```bash
-    curl -o /tmp/mediapipe/yt8m_baseline_saved_model.tar.gz http://data.yt8m.org/models/baseline/saved_model.tar.gz
-
-    tar -xvf /tmp/cv-cuda-pipeline/yt8m_baseline_saved_model.tar.gz -C /tmp/mediapipe
-    ```
-
-2.  Build the inference binary.
-
-    ```bash
-    bazel build -c opt --define='MEDIAPIPE_DISABLE_GPU=1' --linkopt=-s \
-      cv-cuda-pipeline/examples/desktop/youtube8m:model_inference
-    ```
-
-3.  Run the python web server.
-
-    Note: pip3 install absl-py
-
-    ```bash
-    python cv-cuda-pipeline/examples/desktop/youtube8m/viewer/server.py --root `pwd`
-    ```
-
-    Navigate to localhost:8008 in a web browser.
-
 ### Steps to run the YouTube-8M model inference graph with a local video
 
 1.  Make sure you have the features.pb from the feature extraction pipeline.

@@ -21,7 +21,6 @@ licenses(["notice"])
 package(default_visibility = [
     "//buzz/diffractor/mediapipe:__subpackages__",
     "//cv-cuda-pipeline/examples:__subpackages__",
-    "//cv-cuda-pipeline/web/solutions:__subpackages__",
 ])
 
 cc_library(

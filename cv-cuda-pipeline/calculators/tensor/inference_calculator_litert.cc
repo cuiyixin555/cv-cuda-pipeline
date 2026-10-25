@@ -176,9 +176,6 @@ InferenceCalculatorLiteRtImpl::CreateInferenceRunner(CalculatorContext* cc) {
       options.has_input_output_config() ? &options.input_output_config()
                                         : nullptr,
       memory_manager_, get_glcontext_fn(),
-#if defined(__EMSCRIPTEN__)
-      /*.webgpu_service=*/nullptr,
-#endif  // __EMSCRIPTEN__
       std::move(litert_options), system_handles);
 }
 
