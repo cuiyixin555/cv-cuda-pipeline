@@ -1,0 +1,198 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file OpGaussianNoise.h
+ *
+ * @brief Defines types and functions to handle the GaussianNoise operation.
+ * @defgroup NVCV_C_ALGORITHM_GAUSSIAN_NOISE GaussianNoise
+ * @{
+ */
+
+#ifndef CVCUDA_GAUSSIAN_NOISE_H
+#define CVCUDA_GAUSSIAN_NOISE_H
+
+#include "Operator.h"
+#include "Types.h"
+#include "detail/Export.h"
+
+#include <cuda_runtime.h>
+#include <nvcv/ImageBatch.h>
+#include <nvcv/Status.h>
+#include <nvcv/Tensor.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+/* Constructs and an instance of the GaussianNoise operator.
+ *
+ * @param [out] handle Where the image instance handle will be written to.
+ *                     + Must not be NULL.
+ *
+ * @param [in] maxBatchSize the maximum batch size.
+ *
+ * @retval #NVCV_ERROR_INVALID_ARGUMENT Handle is null.
+ * @retval #NVCV_ERROR_OUT_OF_MEMORY    Not enough memory to create the operator.
+ * @retval #NVCV_SUCCESS                Operation executed successfully.
+*/
+
+CVCUDA_PUBLIC NVCVStatus cvcudaGaussianNoiseCreate(NVCVOperatorHandle *handle, int maxBatchSize);
+
+/* Executes the GaussianNoise operation on the given cuda stream. This operation does not
+ *  wait for completion.
+ *
+ *  Limitations:
+ *
+ *  Input:
+ *       Data Layout:    [kNHWC, kHWC, kNCHW, kCHW]
+ *       Channels:       [1, 2, 3, 4] (planar kNCHW/kCHW: [1, 3, 4])
+ *
+ *       Data Type      | Allowed
+ *       -------------- | -------------
+ *       8bit  Unsigned | Yes
+ *       8bit  Signed   | No
+ *       16bit Unsigned | Yes
+ *       16bit Signed   | Yes
+ *       32bit Unsigned | No
+ *       32bit Signed   | Yes
+ *       16bit Float    | Yes
+ *       32bit Float    | Yes
+ *       64bit Float    | No
+ *
+ *  Output:
+ *       Data Layout:    [kNHWC, kHWC, kNCHW, kCHW]
+ *       Channels:       [1, 2, 3, 4] (planar kNCHW/kCHW: [1, 3, 4])
+ *
+ *       Data Type      | Allowed
+ *       -------------- | -------------
+ *       8bit  Unsigned | Yes
+ *       8bit  Signed   | No
+ *       16bit Unsigned | Yes
+ *       16bit Signed   | Yes
+ *       32bit Unsigned | No
+ *       32bit Signed   | Yes
+ *       16bit Float    | Yes
+ *       32bit Float    | Yes
+ *       64bit Float    | No
+ *
+ *  Input/Output dependency
+ *
+ *       Property      |  Input == Output
+ *      -------------- | -------------
+ *       Data Layout   | Yes
+ *       Data Type     | Yes
+ *       Number        | Yes
+ *       Channels      | Yes
+ *       Width         | Yes
+ *       Height        | Yes
+ *
+ *  mu Tensor
+ *
+ *      Must be 'N' (dim = 1) with N = batch size.
+ *      Data Type must be 32bit Float.
+ *      DataType must be TYPE_F32.
+ *
+ *  sigma Tensor
+ *
+ *      Must be 'N' (dim = 1) with N = batch size.
+ *      Data Type must be 32bit Float.
+ *      DataType must be TYPE_F32.
+ *
+ *
+ * @param [in] handle Handle to the operator.
+ *                    + Must not be NULL.
+ * @param [in] stream Handle to a valid CUDA stream.
+ *
+ * @param [in] in input image batch.
+ *
+ * @param [out] out output image batch.
+ *
+ * @param [in] mu an array of size batch that gives the mu value for gaussian noise.
+ *
+ * @param [in] sigma an array of size batch that gives the sigma value for gaussian noise.
+ *
+ * @param [in] per_channel whether to add the same noise for all channels.
+ *
+ * @param [in] seed for random numbers
+ *
+ * @retval #NVCV_ERROR_INVALID_ARGUMENT Some parameter is outside valid range.
+ * @retval #NVCV_ERROR_INTERNAL         Internal error in the operator, invalid types passed in.
+ * @retval #NVCV_SUCCESS                Operation executed successfully.
+*/
+/** @{ */
+
+CVCUDA_PUBLIC NVCVStatus cvcudaGaussianNoiseSubmit(NVCVOperatorHandle handle, cudaStream_t stream, NVCVTensorHandle in,
+                                                   NVCVTensorHandle out, NVCVTensorHandle mu, NVCVTensorHandle sigma,
+                                                   int8_t per_channel, unsigned long long seed);
+
+/**
+ * Executes GaussianNoise on a tensor with scalar noise parameters.
+ *
+ * This parameter-tensor-free variant passes \p mu and \p sigma by value, avoiding device parameter tensors and their
+ * host-to-device uploads. Its uint8 conversion and optional clipping match
+ * `torchvision.transforms.v2.functional.gaussian_noise`; float32 output is optionally clamped to [0, 1]. Random samples
+ * are generated by CV-CUDA's cuRAND stream and are not sample-identical to Torch.
+ *
+ * Reference: torchvision.transforms.v2.functional.gaussian_noise
+ *
+ * Limitations:
+ *
+ * Input and output:
+ *      Data Layout:    [kNHWC, kHWC, kNCHW, kCHW]
+ *      Channels:       [1, 2, 3, 4] (planar kNCHW/kCHW: [1, 3, 4])
+ *      Data Type:      [TYPE_U8, TYPE_F32]
+ *
+ * Input and output must have identical shape, layout, and data type. \p mu and \p sigma use input-value units. For
+ * uint8 torchvision-compatible normalized parameters, callers multiply both values by 255 before submission.
+ *
+ * @param [in] handle Handle to the operator. Must not be NULL.
+ * @param [in] stream CUDA stream on which to perform the operation.
+ * @param [in] in Input image tensor.
+ * @param [out] out Output image tensor.
+ * @param [in] mu Mean of the Gaussian distribution in input-value units.
+ * @param [in] sigma Non-negative standard deviation in input-value units.
+ * @param [in] per_channel If non-zero, generate independent noise for every channel; otherwise share noise across
+ *                         channels at each pixel.
+ * @param [in] seed Seed for CV-CUDA's random-number stream.
+ * @param [in] reseed If non-zero, reinitialize the random-number stream from \p seed before this submission. Otherwise
+ *                    the stream is initialized only on first use and advances between calls.
+ * @param [in] clip If non-zero, clamp output to [0, 255] for uint8 or [0, 1] for float32. If zero, float32 remains
+ *                  unbounded and uint8 wraps modulo 256 after addition.
+ *
+ * @retval #NVCV_ERROR_INVALID_ARGUMENT Some parameter is outside its valid range.
+ * @retval #NVCV_ERROR_INTERNAL An internal error occurred.
+ * @retval #NVCV_SUCCESS Operation was submitted successfully.
+ */
+CVCUDA_PUBLIC NVCVStatus cvcudaGaussianNoiseScalarSubmit(NVCVOperatorHandle handle, cudaStream_t stream,
+                                                         NVCVTensorHandle in, NVCVTensorHandle out, float mu,
+                                                         float sigma, int8_t per_channel, unsigned long long seed,
+                                                         int8_t reseed, int8_t clip);
+
+CVCUDA_PUBLIC NVCVStatus cvcudaGaussianNoiseVarShapeSubmit(NVCVOperatorHandle handle, cudaStream_t stream,
+                                                           NVCVImageBatchHandle in, NVCVImageBatchHandle out,
+                                                           NVCVTensorHandle mu, NVCVTensorHandle sigma,
+                                                           int8_t per_channel, unsigned long long seed);
+
+/** @} */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* CVCUDA_GAUSSIAN_NOISE_H */

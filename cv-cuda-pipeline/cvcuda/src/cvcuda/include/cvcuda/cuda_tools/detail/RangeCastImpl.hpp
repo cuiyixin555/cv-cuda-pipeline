@@ -1,0 +1,165 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef NVCV_CUDA_DETAIL_RANGE_CAST_IMPL_HPP
+#define NVCV_CUDA_DETAIL_RANGE_CAST_IMPL_HPP
+
+// Internal implementation of range cast functionality.
+// Not to be used directly.
+
+#include "MathWrappersImpl.hpp" // for RoundImpl, etc.
+#include "Metaprogramming.hpp"  // for TypeTraits, etc.
+#include "SaturateCastImpl.hpp" // for BaseSaturateImpl, etc.
+
+namespace nvcv::cuda::detail {
+
+template<typename T, typename U>
+inline __host__ __device__ T RangeCastFloatingNarrow(U u)
+{
+    return BoundedCast<T>(u, -TypeTraits<T>::max, TypeTraits<T>::max);
+}
+
+template<typename T, typename U>
+inline __host__ __device__ T RangeCastFloatingToSignedIntegral(U u)
+{
+    if (u >= U{1})
+    {
+        return TypeTraits<T>::max;
+    }
+    else if (u <= U{-1})
+    {
+        return -TypeTraits<T>::max;
+    }
+    else
+    {
+        return RoundImpl<T, U>(static_cast<U>(TypeTraits<T>::max) * u);
+    }
+}
+
+template<typename T, typename U>
+inline __host__ __device__ T RangeCastSignedIntegralToFloating(U u)
+{
+    constexpr T invmax = T{1} / static_cast<T>(TypeTraits<U>::max);
+
+    T out = static_cast<T>(u) * invmax;
+    return out < T{-1} ? T{-1} : out;
+}
+
+template<typename T, typename U>
+inline __host__ __device__ T RangeCastFloatingToUnsignedIntegral(U u)
+{
+    if (u >= U{1})
+    {
+        return TypeTraits<T>::max;
+    }
+    else if (u <= U{0})
+    {
+        return T{0};
+    }
+    else
+    {
+        return RoundImpl<T, U>(static_cast<U>(TypeTraits<T>::max) * u);
+    }
+}
+
+template<typename T, typename U>
+inline __host__ __device__ T RangeCastUnsignedIntegralToFloating(U u)
+{
+    constexpr T invmax = T{1} / static_cast<T>(TypeTraits<U>::max);
+    return static_cast<T>(u) * invmax;
+}
+
+template<typename T, typename U>
+inline __host__ __device__ T RangeCastImpl(U u)
+{
+    constexpr bool kFloatingToFloatingNarrow
+        = std::is_floating_point_v<U> && std::is_floating_point_v<T> && sizeof(U) > sizeof(T);
+    constexpr bool kFloatingToSignedIntegral
+        = std::is_floating_point_v<U> && std::is_integral_v<T> && std::is_signed_v<T>;
+    constexpr bool kSignedIntegralToFloating
+        = std::is_integral_v<U> && std::is_signed_v<U> && std::is_floating_point_v<T>;
+    constexpr bool kFloatingToUnsignedIntegral
+        = std::is_floating_point_v<U> && std::is_integral_v<T> && std::is_unsigned_v<T>;
+    constexpr bool kUnsignedIntegralToFloating
+        = std::is_integral_v<U> && std::is_unsigned_v<U> && std::is_floating_point_v<T>;
+    constexpr bool kIntegralToIntegral = std::is_integral_v<U> && std::is_integral_v<T>;
+
+    if constexpr (IsHalfV<U> && IsHalfV<T>)
+    {
+        // __half -> __half, range cast reduces to none
+        return u;
+    }
+    else if constexpr (IsHalfV<U>)
+    {
+        // __half -> any: hop through float (lossless) to reuse the rules below;
+        // std::is_floating_point does not classify __half, so it needs explicit routing
+        return RangeCastImpl<T, float>(__half2float(u));
+    }
+    else if constexpr (IsHalfV<T>)
+    {
+        if constexpr (std::is_floating_point_v<U>)
+        {
+            // any-float -> __half, big -> small: clamp to the finite half range and
+            // convert directly so double inputs do not round through float first
+            return BoundedCast<T>(u, U{-65504}, U{65504});
+        }
+        else
+        {
+            // any-integral -> __half: normalize in float then round once to half
+            return __float2half(RangeCastImpl<float, U>(u));
+        }
+    }
+    else if constexpr (kFloatingToFloatingNarrow)
+    {
+        // any-float -> any-float, big -> small
+        return RangeCastFloatingNarrow<T>(u);
+    }
+    else if constexpr (kFloatingToSignedIntegral)
+    {
+        // any-float -> any-integral-signed
+        return RangeCastFloatingToSignedIntegral<T>(u);
+    }
+    else if constexpr (kSignedIntegralToFloating)
+    {
+        // any-integral-signed -> any-float
+        return RangeCastSignedIntegralToFloating<T>(u);
+    }
+    else if constexpr (kFloatingToUnsignedIntegral)
+    {
+        // any-float -> any-integral-unsigned
+        return RangeCastFloatingToUnsignedIntegral<T>(u);
+    }
+    else if constexpr (kUnsignedIntegralToFloating)
+    {
+        // any-integral-unsigned -> any-float
+        return RangeCastUnsignedIntegralToFloating<T>(u);
+    }
+    else if constexpr (kIntegralToIntegral)
+    {
+        // any-integral -> any-integral, range cast reduces to saturate cast
+        return BaseSaturateCastImpl<T, U>(u);
+    }
+    else
+    {
+        // any-float -> any-float, small -> big and equal, range cast reduces to none
+        return u;
+    }
+}
+
+} // namespace nvcv::cuda::detail
+
+#endif // NVCV_CUDA_DETAIL_RANGE_CAST_IMPL_HPP

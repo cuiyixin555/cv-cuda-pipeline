@@ -1,0 +1,279 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+**/
+
+#include "Nvtx.hpp"
+#include "OpNonMaximumSuppression.hpp"
+#include "TensorAccessValidation.hpp"
+
+#include <cvcuda/cuda_tools/DropCast.hpp>
+#include <cvcuda/cuda_tools/MathOps.hpp>
+#include <cvcuda/cuda_tools/MathWrappers.hpp>
+#include <cvcuda/cuda_tools/StaticCast.hpp>
+#include <cvcuda/cuda_tools/TensorWrap.hpp>
+#include <nvcv/DataType.hpp>
+#include <nvcv/Exception.hpp>
+#include <nvcv/TensorData.hpp>
+#include <nvcv/TensorLayout.hpp>
+#include <nvcv/util/CheckError.hpp>
+#include <nvcv/util/Math.hpp>
+
+namespace cuda = nvcv::cuda;
+namespace util = nvcv::util;
+
+namespace {
+
+constexpr int kWarpSize              = 32;
+constexpr int kWarpDispatchMinBBoxes = 1024;
+
+template<typename T>
+inline __device__ float ComputeArea(const T &bbox)
+{
+    return bbox.z * bbox.w;
+}
+
+template<typename T>
+inline __device__ float ComputeIoU(const T &box1, const T &box2)
+{
+    int   xInterLeft   = cuda::max(box1.x, box2.x);
+    int   yInterTop    = cuda::max(box1.y, box2.y);
+    int   xInterRight  = cuda::min(box1.x + box1.z, box2.x + box2.z);
+    int   yInterBottom = cuda::min(box1.y + box1.w, box2.y + box2.w);
+    int   widthInter   = xInterRight - xInterLeft;
+    int   heightInter  = yInterBottom - yInterTop;
+    float interArea    = widthInter * heightInter;
+    float iou          = 0.f;
+    if (widthInter > 0.f && heightInter > 0.f)
+    {
+        float unionArea = ComputeArea(box1) + ComputeArea(box2) - interArea;
+        if (unionArea > 0.f)
+        {
+            iou = interArea / unionArea;
+        }
+    }
+    return iou;
+}
+
+template<typename T>
+__device__ __forceinline__ bool ShouldDiscardOnScoreTie(const T &bboxX, int indexX, const T &bboxY, int indexY)
+{
+    const float areaX = ComputeArea(bboxX);
+    const float areaY = ComputeArea(bboxY);
+    return areaX < areaY || (areaX == areaY && indexX > indexY);
+}
+
+template<typename T, typename U>
+__global__ void NonMaximumSuppressionScalar(cuda::Tensor2DWrap<const T, int32_t>     inBBoxes,
+                                            cuda::Tensor2DWrap<U, int32_t>           outMask,
+                                            cuda::Tensor2DWrap<const float, int32_t> inScores, int numBBoxes,
+                                            float scoreThreshold, float iouThreshold)
+{
+    const int bboxX = blockDim.x * blockIdx.x + threadIdx.x;
+    if (bboxX >= numBBoxes)
+    {
+        return;
+    }
+
+    const int   batchIdx = blockIdx.z;
+    const int2  coordX{bboxX, batchIdx};
+    const float scoreX = inScores[coordX];
+
+    U &dst = outMask[coordX];
+
+    if (scoreX < scoreThreshold)
+    {
+        dst = 0;
+        return;
+    }
+
+    const T srcX = inBBoxes[coordX];
+
+#pragma unroll 2
+    for (int bboxY = 0; bboxY < numBBoxes; ++bboxY)
+    {
+        const int2  coordY{bboxY, batchIdx};
+        const float scoreY = inScores[coordY];
+        if (scoreY < scoreX)
+        {
+            continue;
+        }
+
+        const T srcY = inBBoxes[coordY];
+
+        if (scoreX == scoreY && !ShouldDiscardOnScoreTie(srcX, bboxX, srcY, bboxY))
+        {
+            continue;
+        }
+
+        if (ComputeIoU(srcX, srcY) > iouThreshold)
+        {
+            dst = 0;
+            return;
+        }
+    }
+
+    dst = 1;
+}
+
+template<typename T, typename U>
+__global__ void NonMaximumSuppressionWarp(cuda::Tensor2DWrap<const T, int32_t>     inBBoxes,
+                                          cuda::Tensor2DWrap<U, int32_t>           outMask,
+                                          cuda::Tensor2DWrap<const float, int32_t> inScores, int numBBoxes,
+                                          float scoreThreshold, float iouThreshold)
+{
+    const int lane  = threadIdx.x % kWarpSize;
+    const int bboxX = blockIdx.x * (blockDim.x / kWarpSize) + threadIdx.x / kWarpSize;
+    if (bboxX >= numBBoxes)
+    {
+        return;
+    }
+
+    const int   batchIdx = blockIdx.z;
+    const int2  coordX{bboxX, batchIdx};
+    const float scoreX = inScores[coordX];
+
+    if (scoreX < scoreThreshold)
+    {
+        if (lane == 0)
+        {
+            outMask[coordX] = 0;
+        }
+        return;
+    }
+
+    const T srcX = inBBoxes[coordX];
+
+    bool discard = false;
+#pragma unroll 2
+    for (int bboxBase = 0; bboxBase < numBBoxes; bboxBase += kWarpSize)
+    {
+        const int bboxY = bboxBase + lane;
+        if (bboxY < numBBoxes)
+        {
+            const int2  coordY{bboxY, batchIdx};
+            const float scoreY = inScores[coordY];
+            if (scoreY >= scoreX)
+            {
+                const T srcY = inBBoxes[coordY];
+
+                if ((scoreX != scoreY || ShouldDiscardOnScoreTie(srcX, bboxX, srcY, bboxY))
+                    && ComputeIoU(srcX, srcY) > iouThreshold)
+                {
+                    discard = true;
+                }
+            }
+        }
+
+        if (__any_sync(0xffffffff, discard))
+        {
+            discard = true;
+            break;
+        }
+    }
+
+    if (lane == 0)
+    {
+        outMask[coordX] = discard ? 0 : 1;
+    }
+}
+
+inline __host__ void RunNonMaximumSuppresion(const nvcv::TensorDataStridedCuda &in,
+                                             const nvcv::TensorDataStridedCuda &out,
+                                             const nvcv::TensorDataStridedCuda &scores, float scThresh, float iouThresh,
+                                             cudaStream_t stream)
+{
+    cuda::Tensor2DWrap<const short4, int32_t> inWrap(in);
+    cuda::Tensor2DWrap<uint8_t, int32_t>      outWrap(out);
+    cuda::Tensor2DWrap<const float, int32_t>  scoresWrap(scores);
+
+    int numSamples = in.shape(0);
+    int numBBoxes  = in.shape(1);
+
+    dim3 block(128, 1, 1);
+
+    if (numBBoxes < kWarpDispatchMinBBoxes)
+    {
+        // Small per-sample box counts do not amortize one warp per candidate.
+        dim3 grid((numBBoxes + block.x - 1) / block.x, 1, numSamples);
+        NonMaximumSuppressionScalar<<<grid, block, 0, stream>>>(inWrap, outWrap, scoresWrap, numBBoxes, scThresh,
+                                                                iouThresh);
+    }
+    else
+    {
+        dim3 grid((numBBoxes + block.x / kWarpSize - 1) / (block.x / kWarpSize), 1, numSamples);
+        NonMaximumSuppressionWarp<<<grid, block, 0, stream>>>(inWrap, outWrap, scoresWrap, numBBoxes, scThresh,
+                                                              iouThresh);
+    }
+    NVCV_CHECK_THROW(cudaGetLastError());
+}
+
+} // namespace
+
+// =============================================================================
+// NonMaximumSuppression Class Definition
+// =============================================================================
+
+namespace cvcuda::priv {
+
+NonMaximumSuppression::NonMaximumSuppression() {}
+
+void NonMaximumSuppression::operator()(cudaStream_t stream, const nvcv::Tensor &in, const nvcv::Tensor &out,
+                                       const nvcv::Tensor &scores, float scoreThreshold, float iouThreshold) const
+{
+    CVCUDA_NVTX_RANGE("cvcuda::NonMaximumSuppression::operator()[Tensor]");
+    auto inData    = RequireCudaTensor(in, "Input");
+    auto outData   = RequireCudaTensor(out, "Output");
+    auto scoreData = RequireCudaTensor(scores, "Scores");
+
+    if (!((inData->rank() == 3 && inData->dtype() == nvcv::TYPE_S16 && inData->shape(2) == 4)
+          || (inData->rank() == 3 && inData->dtype() == nvcv::TYPE_4S16 && inData->shape(2) == 1)
+          || (inData->rank() == 2 && inData->dtype() == nvcv::TYPE_4S16)))
+    {
+        throw nvcv::Exception(nvcv::Status::ERROR_INVALID_ARGUMENT,
+                              "Input tensor must have rank 2 or 3 and 4xS16 or 4S16 data type");
+    }
+    if (!((outData->rank() == 3 && outData->dtype() == nvcv::TYPE_U8 && outData->shape(2) == 1)
+          || (outData->rank() == 2 && outData->dtype() == nvcv::TYPE_U8)))
+    {
+        throw nvcv::Exception(nvcv::Status::ERROR_INVALID_ARGUMENT,
+                              "Output tensor must have rank 2 or 3 and U8 data type");
+    }
+    if (!((scoreData->rank() == 3 && scoreData->dtype() == nvcv::TYPE_F32 && scoreData->shape(2) == 1)
+          || (scoreData->rank() == 2 && scoreData->dtype() == nvcv::TYPE_F32)))
+    {
+        throw nvcv::Exception(nvcv::Status::ERROR_INVALID_ARGUMENT,
+                              "Scores tensor must have rank 2 or 3 and 1xF32 data type");
+    }
+    if (inData->shape(0) != outData->shape(0) || inData->shape(0) != scoreData->shape(0))
+    {
+        throw nvcv::Exception(nvcv::Status::ERROR_INVALID_ARGUMENT,
+                              "Input, output and scores number of batches (first shape) must be equal");
+    }
+    if (inData->shape(1) != outData->shape(1) || inData->shape(1) != scoreData->shape(1))
+    {
+        throw nvcv::Exception(nvcv::Status::ERROR_INVALID_ARGUMENT,
+                              "Input, output and scores number of boxes (second shape) must be equal");
+    }
+
+    if (iouThreshold <= 0.f || iouThreshold > 1.f)
+    {
+        throw nvcv::Exception(nvcv::Status::ERROR_INVALID_ARGUMENT, "IoU threshold must be in (0, 1]");
+    }
+
+    RunNonMaximumSuppresion(*inData, *outData, *scoreData, scoreThreshold, iouThreshold, stream);
+}
+
+} // namespace cvcuda::priv

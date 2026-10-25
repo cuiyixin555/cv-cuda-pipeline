@@ -1,0 +1,135 @@
+#!/bin/bash -e
+#
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+tests_dir=${1:-"@PYTHON_TEST_DIR@"}
+python_versions_tentative="@PYTHON_TEST_VERSIONS@"
+
+python_versions=""
+
+# Check if test scripts exist in test_dir
+if [ ! -f "$tests_dir/cvcuda_util.py" ]; then
+    # try to find the scripts in relative path
+    echo "Python test scripts (E.g. cvcuda_util.py, test_op*.py) doesn't exist in $tests_dir"
+    echo "Trying to find python test scripts via relative path"
+    cvcuda_test_types_python_tar_dir=$(cd "$(dirname "$0")"; pwd)/../@PYTHON_TEST_INSTDIR@ # relative path in tarball
+    if [ -f "$cvcuda_test_types_python_tar_dir/cvcuda_util.py" ]; then
+        echo "Found python test scripts at $cvcuda_test_types_python_tar_dir via relative path"
+        tests_dir=$cvcuda_test_types_python_tar_dir
+    else
+        echo "Cannot find python test scripts in $tests_dir and $cvcuda_test_types_python_tar_dir"
+        echo "Please run ./cvcuda_test_python [python test scripts folder]"
+        exit 1 #hard exit
+    fi
+fi
+
+# Verify if correct package dependencies are installed --------
+pip_depends="pytest cupy numpy"
+
+# Collect all python versions that are indeed installed and have proper dependencies installed
+# Two behaviors:
+# - default: skip Python versions that are not installed or don't have pytest, cuda-python and numpy installed
+# - if FORCE_PYTHON_TESTS is set: exit with error
+for ver in $python_versions_tentative; do
+
+    if ! python$ver -c "import pytest, cupy, numpy" > /dev/null 2>&1; then
+        echo "WARNING: Python version $ver not installed or missing proper dependencies"
+        echo "Please install Python version $ver and run the following commands before running tests: python$ver -m pip install $pip_depends"
+        if [[ "$FORCE_PYTHON_TESTS" == 1 || "$FORCE_PYTHON_TESTS" == yes ]]; then
+            echo "Exiting with FAILURE, as FORCE_PYTHON_TESTS=$FORCE_PYTHON_TESTS"
+            exit 2 #hard exit
+        else
+            echo "Continue and skipping python version $ver, as FORCE_PYTHON_TESTS=$FORCE_PYTHON_TESTS"
+        fi
+    else
+        echo "Found Python version $ver installed with proper dependencies, adding to tests"
+        python_versions+="$ver "
+    fi
+done
+
+# Run tests --------
+
+tmpdir=$(mktemp -d)
+
+function on_exit()
+{
+    rm -rf $tmpdir
+}
+trap 'on_exit' EXIT
+
+export PYTHONPATH="$PYTHONPATH:@PYTHON_MODULE_DIR@"
+
+# The NVTX marker test needs the probe injected via NVTX_INJECTION64_PATH, which NVTX reads once at
+# process start. Injecting it for the whole suite would route every operator call -- and cupy's own
+# NVTX ranges -- through the probe for the entire session, growing its recorded-name buffer without
+# bound (only the marker test resets it) and risking host-memory exhaustion. So run the marker test
+# in its own pytest process with the probe injected, and run the rest of the suite without it.
+nvtx_marker_test="$tests_dir/test_nvtx_markers.py"
+nvtx_probe="@NVTX_PROBE_PATH@"
+export CVCUDA_FREE_THREADING_PROBE="@FREE_THREADING_PROBE_PATH@"
+if [[ ! -f "$CVCUDA_FREE_THREADING_PROBE" && -f "$tests_dir/libcvcuda_free_threading_probe.so" ]]; then
+    export CVCUDA_FREE_THREADING_PROBE="$tests_dir/libcvcuda_free_threading_probe.so"
+fi
+
+# Never let an inherited NVTX_INJECTION64_PATH leak into the main (uninjected) suite run.
+unset NVTX_INJECTION64_PATH
+
+for ver in $python_versions; do
+
+    if [[ "$FORCE_PYTHON_TESTS" != 1 && "$FORCE_PYTHON_TESTS" != yes ]]; then
+        if ! python$ver -c 'import cvcuda'; then
+            echo "Skipping python-$ver, CV-CUDA python bindings not installed"
+            continue
+        fi
+    fi
+
+    if [[ "$ver" == *t ]]; then
+        python$ver -c 'import sys, sysconfig, cvcuda; assert sysconfig.get_config_var("Py_GIL_DISABLED"); assert not sys._is_gil_enabled(), "CV-CUDA tests require the GIL disabled"'
+    fi
+
+    # Check if python module is exposing only PyInit__cvcuda.
+    # Also provide some helpful info is exposing too much.
+    # Import the actual C++ extension module, not the package
+    modfile=$(python$ver -c "import cvcuda._cvcuda as m; print(m.__file__)")
+    pubsyms=$(readelf -sWD $modfile | grep -v ' UND ' | grep ' GLOBAL ')
+    if [[ $(echo "$pubsyms" | wc -l) != 1 ]]; then
+        echo -e "cvcuda python $ver module is exposing too many symbols:\n$pubsyms"
+        exit 3
+    fi
+    if ! echo "$pubsyms" | grep PyInit__cvcuda > /dev/null; then
+        echo -e "cvcuda python $ver module must expose symbol PyInit__cvcuda, but instead exposes:\n$pubsyms"
+        exit 4
+    fi
+
+    # Run python tests. The marker test is excluded here and run separately below with the probe
+    # injected, so the probe is never installed for this (much larger) uninjected pass.
+    # -q, not -v: the dtype conversion matrix alone emits over ten thousand
+    # per-test lines, and with one pass per installed Python version the run
+    # exceeds GitLab's 4MB job-log cap partway through. Everything past that
+    # point is dropped, including the failure summary -- a crash late in the
+    # suite then shows up as a bare non-zero exit with no diagnosis. -rf keeps
+    # the failure list, and faulthandler turns a native crash into a stack.
+    CVCUDA_VERSION="@CVCUDA_VERSION_FULL@" python$ver -X faulthandler -m pytest -q -rf --tb=short \
+        -o cache_dir="$tmpdir" --ignore="$nvtx_marker_test" "$@" "$tests_dir"
+
+    # Run the NVTX marker test in its own process, with the probe injected only for that process.
+    if [ -f "$nvtx_probe" ]; then
+        CVCUDA_VERSION="@CVCUDA_VERSION_FULL@" NVTX_INJECTION64_PATH="$nvtx_probe" \
+            python$ver -X faulthandler -m pytest -q -rf --tb=short -o cache_dir="$tmpdir" "$nvtx_marker_test"
+    else
+        echo "Skipping NVTX marker test for python-$ver: probe not found at $nvtx_probe"
+    fi
+done

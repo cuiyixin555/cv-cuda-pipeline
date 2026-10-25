@@ -1,0 +1,476 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "DeviceBorderVarShapeWrap.hpp" // to test in the device
+
+#include <common/BorderUtils.hpp> // for test::IsInside, etc.
+#include <common/DeviceBuffer.hpp>
+#include <common/Printers.hpp>                          // for stream operator, etc.
+#include <common/TypedTests.hpp>                        // for NVCV_TYPED_TEST_SUITE, etc.
+#include <cvcuda/cuda_tools/BorderVarShapeWrap.hpp>     // the object of this test
+#include <cvcuda/cuda_tools/ImageBatchVarShapeWrap.hpp> // for ImageBatchVarShapeWrap, etc.
+#include <cvcuda/cuda_tools/MathOps.hpp>                // for operator == to allow EXPECT_EQ
+#include <nvcv/Image.hpp>                               // for Image, etc.
+#include <nvcv/ImageBatch.hpp>                          // for ImageBatchVarShape, etc.
+
+#include <algorithm>
+#include <array>
+#include <numeric>
+#include <random>
+#include <type_traits>
+
+namespace cuda  = nvcv::cuda;
+namespace test  = nvcv::test;
+namespace ttype = nvcv::test::type;
+
+// ----------------------- Testing BorderVarShapeWrap --------------------------
+
+// Shortcuts to easy write each test case
+
+constexpr auto S16     = NVCV_IMAGE_FORMAT_S16;
+constexpr auto _2S16   = NVCV_IMAGE_FORMAT_2S16;
+constexpr auto RGB8    = NVCV_IMAGE_FORMAT_RGB8;
+constexpr auto RGBA8   = NVCV_IMAGE_FORMAT_RGBA8;
+constexpr auto RGBf32  = NVCV_IMAGE_FORMAT_RGBf32;
+constexpr auto RGBAf32 = NVCV_IMAGE_FORMAT_RGBAf32;
+
+#define NVCV_TEST_ROW(WIDTH, HEIGHT, VARSIZE, SAMPLES, BORDERSIZE, FORMAT, VALUETYPE, BORDERTYPE)         \
+    ttype::Types<ttype::Value<WIDTH>, ttype::Value<HEIGHT>, ttype::Value<VARSIZE>, ttype::Value<SAMPLES>, \
+                 ttype::Value<BORDERSIZE>, ttype::Value<FORMAT>, VALUETYPE, ttype::Value<BORDERTYPE>>
+
+NVCV_TYPED_TEST_SUITE(BorderVarShapeWrapTest,
+                      ttype::Types<NVCV_TEST_ROW(22, 33, 0, 1, 0, RGBA8, uchar4, NVCV_BORDER_CONSTANT),
+                                   NVCV_TEST_ROW(33, 22, 2, 3, 3, _2S16, short2, NVCV_BORDER_CONSTANT),
+                                   NVCV_TEST_ROW(11, 44, 3, 5, 55, RGBAf32, float4, NVCV_BORDER_REPLICATE),
+                                   NVCV_TEST_ROW(122, 66, 7, 9, 7, RGBf32, float3, NVCV_BORDER_WRAP),
+                                   NVCV_TEST_ROW(66, 163, 12, 6, 9, RGB8, uchar3, NVCV_BORDER_REFLECT),
+                                   NVCV_TEST_ROW(199, 99, 23, 4, 19, S16, short1, NVCV_BORDER_REFLECT101)>);
+
+#undef NVCV_TEST_ROW
+
+TYPED_TEST(BorderVarShapeWrapTest, correct_fill)
+{
+    cudaStream_t stream;
+    ASSERT_EQ(cudaSuccess, cudaStreamCreate(&stream));
+
+    int width      = ttype::GetValue<TypeParam, 0>;
+    int height     = ttype::GetValue<TypeParam, 1>;
+    int varSize    = ttype::GetValue<TypeParam, 2>;
+    int samples    = ttype::GetValue<TypeParam, 3>;
+    int borderSize = ttype::GetValue<TypeParam, 4>;
+
+    nvcv::ImageFormat format{ttype::GetValue<TypeParam, 5>};
+
+    using ValueType            = ttype::GetType<TypeParam, 6>;
+    constexpr auto kBorderType = ttype::GetValue<TypeParam, 7>;
+
+    ValueType borderValue = cuda::SetAll<ValueType>(123);
+
+    int2 bSize{borderSize, borderSize};
+
+    nvcv::ImageBatchVarShape srcImageBatch(samples);
+    nvcv::ImageBatchVarShape dstImageBatch(samples);
+
+    std::default_random_engine             randEng{0};
+    std::uniform_int_distribution          randSize{-varSize, varSize};
+    std::uniform_int_distribution<uint8_t> randValues{0, 255};
+
+    std::vector<nvcv::Image>          srcImageList;
+    std::vector<std::vector<uint8_t>> srcVec(samples);
+
+    for (int i = 0; i < srcImageBatch.capacity(); ++i)
+    {
+        srcImageList.emplace_back(nvcv::Size2D{width + randSize(randEng), height + randSize(randEng)}, format);
+
+        auto srcData = srcImageList[i].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_NE(srcData, nvcv::NullOpt);
+
+        int srcRowStride = srcData->plane(0).rowStride;
+        int srcHeight    = srcImageList[i].size().h;
+
+        srcVec[i].resize(srcHeight * srcRowStride);
+        std::ranges::generate(srcVec[i], [&randValues, &randEng]() { return randValues(randEng); });
+
+        ASSERT_EQ(cudaSuccess,
+                  cudaMemcpy2DAsync(srcData->plane(0).basePtr, srcRowStride, srcVec[i].data(), srcRowStride,
+                                    srcRowStride, srcHeight, cudaMemcpyHostToDevice, stream));
+    }
+
+    srcImageBatch.pushBack(srcImageList.begin(), srcImageList.end());
+
+    std::vector<nvcv::Image> dstImageList;
+
+    for (int i = 0; i < samples; ++i)
+    {
+        nvcv::Size2D size = srcImageList[i].size();
+
+        dstImageList.emplace_back(nvcv::Size2D{size.w + borderSize * 2, size.h + borderSize * 2},
+                                  srcImageList[i].format());
+    }
+
+    dstImageBatch.pushBack(dstImageList.begin(), dstImageList.end());
+
+    auto srcImageBatchData = srcImageBatch.exportData<nvcv::ImageBatchVarShapeDataStridedCuda>(stream);
+    ASSERT_NE(srcImageBatchData, nullptr);
+
+    auto dstImageBatchData = dstImageBatch.exportData<nvcv::ImageBatchVarShapeDataStridedCuda>(stream);
+    ASSERT_NE(dstImageBatchData, nullptr);
+
+    int3 dstMaxSize{dstImageBatchData->maxSize().w, dstImageBatchData->maxSize().h, dstImageBatchData->numImages()};
+
+    cuda::BorderVarShapeWrap<const ValueType, kBorderType> srcWrap(*srcImageBatchData, borderValue);
+    cuda::ImageBatchVarShapeWrap<ValueType>                dstWrap(*dstImageBatchData);
+
+    DeviceRunFillBorderVarShape(dstWrap, srcWrap, dstMaxSize, bSize, stream);
+
+    ASSERT_EQ(cudaSuccess, cudaStreamSynchronize(stream));
+    ASSERT_EQ(cudaSuccess, cudaStreamDestroy(stream));
+
+    for (int i = 0; i < samples; ++i)
+    {
+        SCOPED_TRACE(i);
+
+        const auto srcData = srcImageList[i].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_EQ(srcData->numPlanes(), 1);
+
+        const auto dstData = dstImageList[i].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_EQ(dstData->numPlanes(), 1);
+
+        nvcv::Size2D srcSize = srcImageList[i].size();
+        nvcv::Size2D dstSize = dstImageList[i].size();
+
+        int srcRowStride = srcData->plane(0).rowStride;
+        int dstRowStride = dstData->plane(0).rowStride;
+
+        std::vector<uint8_t> testVec(dstSize.h * dstRowStride);
+
+        // Copy output data to Host
+        ASSERT_EQ(cudaSuccess, cudaMemcpy2D(testVec.data(), dstRowStride, dstData->plane(0).basePtr, dstRowStride,
+                                            dstRowStride, dstSize.h, cudaMemcpyDeviceToHost));
+
+        std::vector<uint8_t> goldVec(dstSize.h * dstRowStride);
+
+        // Run gold fill border
+        int2 srcCoord;
+
+        for (int y = 0; y < dstSize.h; ++y)
+        {
+            srcCoord.y = y - borderSize;
+
+            for (int x = 0; x < dstSize.w; ++x)
+            {
+                srcCoord.x = x - borderSize;
+
+                bool isInside = test::IsInside(srcCoord, {srcSize.w, srcSize.h}, kBorderType);
+
+                *reinterpret_cast<ValueType *>(&goldVec[y * dstRowStride + x * sizeof(ValueType)])
+                    = isInside ? *reinterpret_cast<ValueType *>(
+                          &srcVec[i][srcCoord.y * srcRowStride + srcCoord.x * sizeof(ValueType)])
+                               : borderValue;
+            }
+        }
+
+        EXPECT_EQ(testVec, goldVec);
+    }
+}
+
+// ----------------------- Testing BorderVarShapeWrapNHWC --------------------------
+
+#define NVCV_TEST_ROW(WIDTH, HEIGHT, VARSIZE, SAMPLES, BORDERSIZE, FORMAT, VALUETYPE, BORDERTYPE, NUMCHANNELS) \
+    ttype::Types<ttype::Value<WIDTH>, ttype::Value<HEIGHT>, ttype::Value<VARSIZE>, ttype::Value<SAMPLES>,      \
+                 ttype::Value<BORDERSIZE>, ttype::Value<FORMAT>, VALUETYPE, ttype::Value<BORDERTYPE>,          \
+                 ttype::Value<NUMCHANNELS>>
+
+NVCV_TYPED_TEST_SUITE(BorderVarShapeWrapNHWCTest,
+                      ttype::Types<NVCV_TEST_ROW(22, 33, 0, 1, 0, RGBA8, uchar1, NVCV_BORDER_CONSTANT, 3),
+                                   NVCV_TEST_ROW(33, 22, 2, 3, 3, _2S16, short1, NVCV_BORDER_CONSTANT, 2),
+                                   NVCV_TEST_ROW(11, 44, 3, 5, 55, RGBAf32, float1, NVCV_BORDER_REPLICATE, 4),
+                                   NVCV_TEST_ROW(122, 66, 7, 9, 7, RGBf32, float1, NVCV_BORDER_WRAP, 3),
+                                   NVCV_TEST_ROW(66, 163, 12, 6, 9, RGB8, uchar1, NVCV_BORDER_REFLECT, 3),
+                                   NVCV_TEST_ROW(199, 99, 23, 4, 19, S16, short1, NVCV_BORDER_REFLECT101, 1)>);
+
+#undef NVCV_TEST_ROW
+
+template<typename ValueType>
+ValueType &GoldNHWCValueAt(std::vector<uint8_t> &buffer, int rowStride, int numChannels, int x, int y, int c)
+{
+    return *reinterpret_cast<ValueType *>(
+        &buffer[y * rowStride + x * sizeof(ValueType) * numChannels + c * sizeof(ValueType)]);
+}
+
+template<typename ValueType, NVCVBorderType BorderType>
+void GoldFillNHWCPixel(std::vector<uint8_t> &goldVec, int dstRowStride, int numChannels,
+                       const std::vector<uint8_t> &srcVec, int srcRowStride, nvcv::Size2D srcSize, int borderSize,
+                       ValueType borderValue, int x, int y)
+{
+    int2 srcCoord{x - borderSize, y - borderSize};
+    bool isInside = test::IsInside(srcCoord, {srcSize.w, srcSize.h}, BorderType);
+
+    for (int c = 0; c < numChannels; ++c)
+    {
+        GoldNHWCValueAt<ValueType>(goldVec, dstRowStride, numChannels, x, y, c)
+            = isInside ? *reinterpret_cast<const ValueType *>(
+                  &srcVec[srcCoord.y * srcRowStride + srcCoord.x * sizeof(ValueType) * numChannels
+                          + c * sizeof(ValueType)])
+                       : borderValue;
+    }
+}
+
+template<typename ValueType, NVCVBorderType BorderType>
+void GoldFillNHWC(std::vector<uint8_t> &goldVec, int dstRowStride, int numChannels, const std::vector<uint8_t> &srcVec,
+                  int srcRowStride, nvcv::Size2D srcSize, nvcv::Size2D dstSize, int borderSize, ValueType borderValue)
+{
+    for (int y = 0; y < dstSize.h; ++y)
+    {
+        for (int x = 0; x < dstSize.w; ++x)
+        {
+            GoldFillNHWCPixel<ValueType, BorderType>(goldVec, dstRowStride, numChannels, srcVec, srcRowStride, srcSize,
+                                                     borderSize, borderValue, x, y);
+        }
+    }
+}
+
+TYPED_TEST(BorderVarShapeWrapNHWCTest, correct_fill)
+{
+    cudaStream_t stream;
+    ASSERT_EQ(cudaSuccess, cudaStreamCreate(&stream));
+
+    int               width      = ttype::GetValue<TypeParam, 0>;
+    int               height     = ttype::GetValue<TypeParam, 1>;
+    int               varSize    = ttype::GetValue<TypeParam, 2>;
+    int               samples    = ttype::GetValue<TypeParam, 3>;
+    int               borderSize = ttype::GetValue<TypeParam, 4>;
+    nvcv::ImageFormat format{ttype::GetValue<TypeParam, 5>};
+    using ValueType            = ttype::GetType<TypeParam, 6>;
+    constexpr auto kBorderType = ttype::GetValue<TypeParam, 7>;
+    int            numChannels = ttype::GetValue<TypeParam, 8>;
+
+    ValueType borderValue = cuda::SetAll<ValueType>(123);
+
+    int2 bSize{borderSize, borderSize};
+
+    nvcv::ImageBatchVarShape srcImageBatch(samples);
+    nvcv::ImageBatchVarShape dstImageBatch(samples);
+
+    std::default_random_engine             randEng{0};
+    std::uniform_int_distribution          randSize{-varSize, varSize};
+    std::uniform_int_distribution<uint8_t> randValues{0, 255};
+
+    std::vector<nvcv::Image>          srcImageList;
+    std::vector<std::vector<uint8_t>> srcVec(samples);
+
+    for (int i = 0; i < srcImageBatch.capacity(); ++i)
+    {
+        srcImageList.emplace_back(nvcv::Size2D{width + randSize(randEng), height + randSize(randEng)}, format);
+
+        auto srcData = srcImageList[i].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_NE(srcData, nvcv::NullOpt);
+
+        int srcRowStride = srcData->plane(0).rowStride;
+        int srcHeight    = srcImageList[i].size().h;
+
+        srcVec[i].resize(srcHeight * srcRowStride);
+        std::ranges::generate(srcVec[i], [&randValues, &randEng]() { return randValues(randEng); });
+
+        ASSERT_EQ(cudaSuccess,
+                  cudaMemcpy2DAsync(srcData->plane(0).basePtr, srcRowStride, srcVec[i].data(), srcRowStride,
+                                    srcRowStride, srcHeight, cudaMemcpyHostToDevice, stream));
+    }
+
+    srcImageBatch.pushBack(srcImageList.begin(), srcImageList.end());
+
+    std::vector<nvcv::Image> dstImageList;
+
+    for (int i = 0; i < samples; ++i)
+    {
+        nvcv::Size2D size = srcImageList[i].size();
+
+        dstImageList.emplace_back(nvcv::Size2D{size.w + borderSize * 2, size.h + borderSize * 2},
+                                  srcImageList[i].format());
+    }
+
+    dstImageBatch.pushBack(dstImageList.begin(), dstImageList.end());
+
+    auto srcImageBatchData = srcImageBatch.exportData<nvcv::ImageBatchVarShapeDataStridedCuda>(stream);
+    ASSERT_NE(srcImageBatchData, nullptr);
+
+    auto dstImageBatchData = dstImageBatch.exportData<nvcv::ImageBatchVarShapeDataStridedCuda>(stream);
+    ASSERT_NE(dstImageBatchData, nullptr);
+
+    int3 dstMaxSize{dstImageBatchData->maxSize().w, dstImageBatchData->maxSize().h, dstImageBatchData->numImages()};
+
+    cuda::BorderVarShapeWrapNHWC<const ValueType, kBorderType> srcWrap(*srcImageBatchData, numChannels, borderValue);
+    cuda::ImageBatchVarShapeWrapNHWC<ValueType>                dstWrap(*dstImageBatchData, numChannels);
+
+    DeviceRunFillBorderVarShapeNHWC(dstWrap, srcWrap, dstMaxSize, bSize, numChannels, stream);
+
+    ASSERT_EQ(cudaSuccess, cudaStreamSynchronize(stream));
+    ASSERT_EQ(cudaSuccess, cudaStreamDestroy(stream));
+
+    for (int i = 0; i < samples; ++i)
+    {
+        SCOPED_TRACE(i);
+
+        const auto srcData = srcImageList[i].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_EQ(srcData->numPlanes(), 1);
+
+        const auto dstData = dstImageList[i].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_EQ(dstData->numPlanes(), 1);
+
+        nvcv::Size2D srcSize = srcImageList[i].size();
+        nvcv::Size2D dstSize = dstImageList[i].size();
+
+        int srcRowStride = srcData->plane(0).rowStride;
+        int dstRowStride = dstData->plane(0).rowStride;
+
+        std::vector<uint8_t> testVec(dstSize.h * dstRowStride);
+
+        // Copy output data to Host
+        ASSERT_EQ(cudaSuccess, cudaMemcpy2D(testVec.data(), dstRowStride, dstData->plane(0).basePtr, dstRowStride,
+                                            dstRowStride, dstSize.h, cudaMemcpyDeviceToHost));
+
+        std::vector<uint8_t> goldVec(dstSize.h * dstRowStride);
+
+        // Run gold fill border
+        GoldFillNHWC<ValueType, kBorderType>(goldVec, dstRowStride, numChannels, srcVec[i], srcRowStride, srcSize,
+                                             dstSize, borderSize, borderValue);
+
+        EXPECT_EQ(testVec, goldVec);
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+
+template<typename ValueType, NVCVBorderType B>
+static void ExpectVarShapeValueMatchesSubscriptOnDevice()
+{
+    constexpr int kSamples = 2;
+
+    test::StreamGuard streamGuard;
+    ASSERT_NE(nullptr, streamGuard.get());
+    cudaStream_t stream = streamGuard.get();
+
+    nvcv::ImageBatchVarShape batch(kSamples);
+
+    // The wrap's element type and the image format must agree, or the strides do not line up.
+    nvcv::ImageFormat format = nvcv::FMT_RGB8;
+    if constexpr (std::is_same_v<ValueType, uchar4>)
+    {
+        format = nvcv::FMT_RGBA8;
+    }
+    else if constexpr (std::is_same_v<ValueType, float4>)
+    {
+        format = nvcv::FMT_RGBAf32;
+    }
+    else if constexpr (std::is_same_v<ValueType, uchar1>)
+    {
+        format = nvcv::FMT_U8;
+    }
+    else if constexpr (std::is_same_v<ValueType, float1>)
+    {
+        format = nvcv::FMT_F32;
+    }
+    else
+    {
+        // Not a default: a mismatched format makes both compared paths read the same wrong
+        // address, so the probe would agree and prove nothing.
+        static_assert(std::is_same_v<ValueType, uchar3>, "add the image format for this ValueType");
+    }
+
+    std::vector<nvcv::Image> images;
+    images.emplace_back(nvcv::Size2D{5, 4}, format);
+    images.emplace_back(nvcv::Size2D{3, 6}, format);
+    batch.pushBack(images.begin(), images.end());
+
+    // Fill the images before probing. Both paths read the same address, so a wrong address stays
+    // invisible here no matter what the images hold -- that is what the CONSTANT rows and
+    // ReadConstantBorderFormsAgree cover. The ramp is here so the compared taps carry known
+    // values instead of an uninitialized read.
+    for (std::size_t img = 0; img < images.size(); ++img)
+    {
+        const auto imgData = images[img].exportData<nvcv::ImageDataStridedCuda>();
+        ASSERT_NE(imgData, nullptr);
+
+        const int rowStride = imgData->plane(0).rowStride;
+        const int height    = images[img].size().h;
+
+        std::vector<uint8_t> host(height * rowStride);
+        for (std::size_t i = 0; i < host.size(); ++i)
+        {
+            host[i] = static_cast<uint8_t>((img * 97 + i * 7) % 251 + 1);
+        }
+        // Synchronous on purpose: `host` dies at the end of this iteration, so an async copy
+        // would outlive its source. The fill is not on any timing path.
+        ASSERT_EQ(cudaSuccess, cudaMemcpy(imgData->plane(0).basePtr, host.data(), host.size(), cudaMemcpyHostToDevice));
+    }
+
+    auto batchData = batch.exportData<nvcv::ImageBatchVarShapeDataStridedCuda>(stream);
+    ASSERT_NE(batchData, nullptr);
+
+    // Inside, both edges, and well outside in x and y. The sample index stays in range on
+    // purpose: a var-shape wrap does not bound-check it, so an out-of-range sample would be an
+    // out-of-bounds read of the image list rather than a border hit.
+    std::vector<int3> probes;
+    for (int z = 0; z < kSamples; ++z)
+    {
+        for (int y : {0, 1, 3, -1, -4, 5, 9})
+        {
+            for (int x : {0, 2, -1, -3, 4, 8})
+            {
+                probes.push_back(int3{x, y, z});
+            }
+        }
+    }
+
+    test::DeviceBuffer<int3> probesBuf{probes.size()};
+    test::DeviceBuffer<int>  resultBuf{1};
+    ASSERT_NE(nullptr, probesBuf.get());
+    ASSERT_NE(nullptr, resultBuf.get());
+    ASSERT_EQ(cudaSuccess, test::SeedResult(resultBuf.get()));
+
+    int3 *devProbes = probesBuf.get();
+    int  *devResult = resultBuf.get();
+
+    ASSERT_EQ(cudaSuccess,
+              cudaMemcpyAsync(devProbes, probes.data(), probes.size() * sizeof(int3), cudaMemcpyHostToDevice, stream));
+
+    cuda::BorderVarShapeWrap<const ValueType, B> wrap(*batchData, cuda::SetAll<ValueType>(42));
+
+    DeviceRunVarShapeValueMatchesSubscript(wrap, devProbes, (int)probes.size(), devResult, stream);
+    ASSERT_EQ(cudaSuccess, cudaGetLastError());
+    ASSERT_EQ(cudaSuccess, cudaStreamSynchronize(stream));
+
+    int mismatch = 0;
+    ASSERT_EQ(cudaSuccess, cudaMemcpy(&mismatch, devResult, sizeof(int), cudaMemcpyDeviceToHost));
+    ASSERT_NE(test::kResultUnwritten, mismatch) << "the parity kernel did not run";
+
+    EXPECT_EQ(0, mismatch) << "border " << (int)B << " at probe " << mismatch;
+}
+
+TEST(BorderVarShapeWrapTest, ValueMatchesSubscriptOnDevice)
+{
+    ExpectVarShapeValueMatchesSubscriptOnDevice<uchar3, NVCV_BORDER_CONSTANT>();
+    // The element width is what the spill this API avoids depends on, and these two are the other
+    // instantiations the device translation unit provides.
+    ExpectVarShapeValueMatchesSubscriptOnDevice<uchar4, NVCV_BORDER_CONSTANT>();
+    ExpectVarShapeValueMatchesSubscriptOnDevice<float4, NVCV_BORDER_CONSTANT>();
+
+    // Warp's opt-in interpolation path routes up to three components through value(), so these
+    // cover the narrowest elements taking that arm; uchar3 covers the wide end.
+    ExpectVarShapeValueMatchesSubscriptOnDevice<uchar1, NVCV_BORDER_CONSTANT>();
+    ExpectVarShapeValueMatchesSubscriptOnDevice<float1, NVCV_BORDER_CONSTANT>();
+}

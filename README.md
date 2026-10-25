@@ -149,8 +149,66 @@ bazel test -c opt \
   //cv-cuda-pipeline/examples/desktop/autoflip/quality:kinematic_path_solver_test
 ```
 
-Run only targets supported by the dependencies and runtime environment
-available on your machine.
+### CV-CUDA native unit and system tests
+
+The migrated CV-CUDA C++/CUDA tests and their Bazel targets are in
+[`cv-cuda-pipeline/cvcuda/tests`](./cv-cuda-pipeline/cvcuda/tests/BUILD). Build
+and run them from the repository root. They require a CUDA toolkit, a
+compatible NVIDIA driver and GPU, and the architecture flag for that GPU.
+The commands below use `/usr/local/cuda` and `sm_89` as examples; adjust them
+for your environment.
+
+Compile all currently defined CV-CUDA native test targets without running
+them:
+
+```bash
+export CUDA_PATH=/usr/local/cuda
+bazel build --@rules_cuda//cuda:archs=sm_89 \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_types_unit_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_types_system_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_types_standalone_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_cudatools_system_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_version_api_override_test \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_unit_test \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_system_test \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_system_smoke_test
+```
+
+Run a single test target:
+
+```bash
+bazel test --@rules_cuda//cuda:archs=sm_89 --test_output=errors \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_unit_test
+```
+
+Run the complete native test matrix. The CV-CUDA system suite is large and
+sharded by Bazel, so allow up to 30 minutes:
+
+```bash
+bazel test --@rules_cuda//cuda:archs=sm_89 --test_timeout=1800 \
+  --test_output=errors \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_types_unit_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_types_system_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_types_standalone_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_cudatools_system_test \
+  //cv-cuda-pipeline/cvcuda/tests:nvcv_version_api_override_test \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_unit_test \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_system_test \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_system_smoke_test
+```
+
+To run selected GoogleTest cases, pass a filter after `--`:
+
+```bash
+bazel test --@rules_cuda//cuda:archs=sm_89 \
+  //cv-cuda-pipeline/cvcuda/tests:cvcuda_system_test \
+  --test_arg=--gtest_filter='OpAdjustContrast.*'
+```
+
+Replace `sm_89` with the architecture supported by your GPU. `bazel test`
+builds the requested target before executing it; use `bazel build` when you
+only want to compile. Test logs are available with `--test_output=errors` for
+failures or `--test_output=all` to show all test output.
 
 ## Contributing
 

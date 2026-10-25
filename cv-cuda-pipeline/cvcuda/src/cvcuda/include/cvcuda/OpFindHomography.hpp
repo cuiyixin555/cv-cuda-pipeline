@@ -1,0 +1,85 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file FindHomography.hpp
+ *
+ * @brief Defines the private C++ Class for the Find-Homography operation.
+ */
+
+#ifndef CVCUDA__FIND_HOMOGRAPHY_HPP
+#define CVCUDA__FIND_HOMOGRAPHY_HPP
+
+#include "IOperator.hpp"
+#include "OpFindHomography.h"
+
+#include <cuda_runtime.h>
+#include <nvcv/Tensor.hpp>
+#include <nvcv/TensorBatch.hpp>
+#include <nvcv/alloc/Requirements.hpp>
+
+#include <cassert>
+
+namespace cvcuda {
+
+class FindHomography final : public IOperator
+{
+public:
+    explicit FindHomography(int batchSize, int numPoints);
+
+    void operator()(cudaStream_t stream, const nvcv::Tensor &src, const nvcv::Tensor &dst,
+                    const nvcv::Tensor &models) const;
+
+    void operator()(cudaStream_t stream, const nvcv::TensorBatch &src, const nvcv::TensorBatch &dst,
+                    const nvcv::TensorBatch &models) const;
+
+    NVCVOperatorHandle handle() const noexcept override;
+
+private:
+    detail::OperatorHandle m_handle;
+};
+
+inline FindHomography::FindHomography(int batchSize, int numPoints)
+{
+    NVCVOperatorHandle h = nullptr;
+    nvcv::detail::CheckThrow(cvcudaFindHomographyCreate(&h, batchSize, numPoints));
+    assert(h);
+    m_handle = detail::OperatorHandle{h};
+}
+
+inline void FindHomography::operator()(cudaStream_t stream, const nvcv::Tensor &src, const nvcv::Tensor &dst,
+                                       const nvcv::Tensor &models) const
+{
+    nvcv::detail::CheckThrow(
+        cvcudaFindHomographySubmit(m_handle.get(), stream, src.handle(), dst.handle(), models.handle()));
+}
+
+inline void FindHomography::operator()(cudaStream_t stream, const nvcv::TensorBatch &src, const nvcv::TensorBatch &dst,
+                                       const nvcv::TensorBatch &models) const
+{
+    nvcv::detail::CheckThrow(
+        cvcudaFindHomographyVarShapeSubmit(m_handle.get(), stream, src.handle(), dst.handle(), models.handle()));
+}
+
+inline NVCVOperatorHandle FindHomography::handle() const noexcept
+{
+    return m_handle.get();
+}
+
+} // namespace cvcuda
+
+#endif // CVCUDA__FIND_HOMOGRAPHY_HPP

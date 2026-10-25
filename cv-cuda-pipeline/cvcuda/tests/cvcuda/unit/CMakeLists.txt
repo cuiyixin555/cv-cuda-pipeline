@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+add_executable(cvcuda_test_unit
+    TestCudaDeviceUtils.cpp
+    TestWorkspaceAllocator.cpp
+    TestWorkspaceEstimator.cpp
+    TestStreamId.cpp
+    TestSimpleCache.cpp
+    TestPerStreamCache.cpp
+    TestOpBndBoxPolicy.cpp
+    TestOpBndBoxCommands.cpp
+    TestOpBoxBlur.cpp
+    TestOpCopyMakeBorderPolicy.cpp
+    TestOpEraseCopyPolicy.cpp
+    TestOpFlipPolicy.cpp
+    TestOpHQResize.cpp
+    TestOpHQResizePolicy.cpp
+    TestOpInvertPolicy.cpp
+    TestOpPillowResizePolicy.cpp
+    TestPlanarSampleDecode.cpp
+    TestTextBackend.cpp
+)
+
+get_target_property(CVCUDA_SOURCE_DIR cvcuda SOURCE_DIR)
+
+target_compile_definitions(cvcuda_test_unit
+    PRIVATE
+        -DNVCV_UNIT_TEST=1
+)
+
+target_link_libraries(cvcuda_test_unit
+    PRIVATE
+        nvcv_test_main
+        nvcv_util
+        nvcv_test_common
+        cvcuda_priv
+        cvcuda_util
+        cvcuda_nvtx_config
+        CUDA::cuda_driver
+)
+
+target_include_directories(cvcuda_test_unit
+    PRIVATE
+        ${CVCUDA_SOURCE_DIR}/..
+)
+
+nvcv_add_test(cvcuda_test_unit cvcuda cpp)
