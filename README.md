@@ -1,5 +1,7 @@
 # CV-CUDA Pipeline
 
+![CV-CUDA Pipeline banner](asserts/cv-cuda-pipeline.png)
+
 CV-CUDA Pipeline is a C++ computer-vision project for building and running
 real-time image and video processing graphs. It uses Bazel to manage native
 code, models, and third-party dependencies. The repository includes desktop
