@@ -99,6 +99,46 @@ Other desktop examples and their Bazel targets are under
 The graph configurations used by examples are under
 [`cv-cuda-pipeline/graphs`](./cv-cuda-pipeline/graphs).
 
+### CUDA image operators
+
+All 49 operator examples from the CV-CUDA `samples/operators` collection have
+C++ command-line demos and native CUDA kernels, grouped by behavior under
+[`cuda_image_ops`](./cv-cuda-pipeline/examples/desktop/cuda_image_ops):
+
+- Pixel operations: `brightness_contrast`, `channelreorder`, `color_twist`,
+  `convertto`, `flip`, `gamma_contrast`, and `threshold`.
+- Geometric and format operations: `center_crop`, `advcvtcolor`, `cvtcolor`,
+  `reformat`, `resize`, `hq_resize`, `pillowresize`, `copymakeborder`,
+  `customcrop`, `random_resized_crop`, `crop_flip_normalize_reformat`,
+  `resize_crop_convert_reformat`, `remap`, and `rotate`.
+- Filters and image statistics: `adaptivethreshold`, `averageblur`,
+  `bilateral_filter`, `boxblur`, `clahe`, `conv2d`, `erase`, `gaussian`,
+  `gaussiannoise`, `histogrameq`, `joint_bilateral_filter`, `laplacian`,
+  `median_blur`, `morphology`, and `normalize`.
+- Compositing and advanced operations: `bndbox`, `composite`,
+  `cvcuda_tv_augment`, `cvcuda_tv_color`, `cvcuda_tv_compose`,
+  `cvcuda_tv_geometry`, `cvcuda_tv_misc`, `inpaint`, `label`, `osd`, `stack`,
+  `warp_affine`, and `warp_perspective`.
+
+Set `CUDA_PATH` if the toolkit is not discoverable from `PATH` or the platform's
+default installation location, and choose the CUDA architecture supported by
+your GPU (the example below uses `sm_89`):
+
+```bash
+export CUDA_PATH=/usr/local/cuda
+bazel build --@rules_cuda//cuda:archs=sm_89 \
+  //cv-cuda-pipeline/examples/desktop/cuda_image_ops/...
+bazel test --@rules_cuda//cuda:archs=sm_89 \
+  //cv-cuda-pipeline/examples/desktop/cuda_image_ops/...
+bazel run --@rules_cuda//cuda:archs=sm_89 \
+  //cv-cuda-pipeline/examples/desktop/cuda_image_ops:cuda_image_ops -- \
+  --operator flip --input /path/to/input.jpg --output /path/to/output.jpg
+```
+
+Each operator family README documents its CLI, default parameters, and
+operator-specific limitations. The samples use OpenCV for image I/O; processing
+is performed by CUDA kernels.
+
 ## Testing
 
 C++ unit tests are defined alongside their libraries in Bazel `BUILD` files.
