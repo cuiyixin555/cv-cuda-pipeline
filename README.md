@@ -87,5 +87,6 @@ formatting conventions. Include focused tests for changes when applicable.
 
 ## References
 
+- [MediaPipe](https://github.com/google-ai-edge/mediapipe)
 - [NVIDIA CV-CUDA](https://github.com/CVCUDA/CV-CUDA.git)
 - [Bazel CUDA rules](https://github.com/bazel-contrib/rules_cuda.git)
