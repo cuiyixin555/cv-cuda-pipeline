@@ -1,0 +1,77 @@
+# Copyright 2022 The MediaPipe Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("//cv-cuda-pipeline/framework/port:build_config.bzl", "mediapipe_proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+mediapipe_proto_library(
+    name = "hand_association_calculator_proto",
+    srcs = ["hand_association_calculator.proto"],
+    deps = [
+        "//cv-cuda-pipeline/framework:calculator_options_proto",
+        "//cv-cuda-pipeline/framework:calculator_proto",
+    ],
+)
+
+cc_library(
+    name = "hand_association_calculator",
+    srcs = ["hand_association_calculator.cc"],
+    hdrs = ["hand_association_calculator.h"],
+    deps = [
+        ":hand_association_calculator_cc_proto",
+        "//cv-cuda-pipeline/calculators/util:association_calculator",
+        "//cv-cuda-pipeline/framework/api3:calculator",
+        "//cv-cuda-pipeline/framework/api3:calculator_context",
+        "//cv-cuda-pipeline/framework/api3:contract",
+        "//cv-cuda-pipeline/framework/api3:node",
+        "//cv-cuda-pipeline/framework/formats:rect_cc_proto",
+        "//cv-cuda-pipeline/framework/port:rectangle",
+        "//cv-cuda-pipeline/framework/port:status",
+        "//cv-cuda-pipeline/util:rectangle_util",
+        "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/status",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "hand_landmarks_deduplication_calculator",
+    srcs = ["hand_landmarks_deduplication_calculator.cc"],
+    hdrs = ["hand_landmarks_deduplication_calculator.h"],
+    deps = [
+        "//cv-cuda-pipeline/framework/api3:calculator",
+        "//cv-cuda-pipeline/framework/api3:calculator_context",
+        "//cv-cuda-pipeline/framework/api3:contract",
+        "//cv-cuda-pipeline/framework/api3:node",
+        "//cv-cuda-pipeline/framework/formats:classification_cc_proto",
+        "//cv-cuda-pipeline/framework/formats:landmark_cc_proto",
+        "//cv-cuda-pipeline/framework/formats:rect_cc_proto",
+        "//cv-cuda-pipeline/framework/port:ret_check",
+        "//cv-cuda-pipeline/tasks/cc/components/containers:rect",
+        "//cv-cuda-pipeline/tasks/cc/vision/utils:landmarks_duplicates_finder",
+        "//cv-cuda-pipeline/tasks/cc/vision/utils:landmarks_utils",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:optional",
+    ],
+    alwayslink = 1,
+)

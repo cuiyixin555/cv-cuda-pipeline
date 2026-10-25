@@ -1,0 +1,331 @@
+# Copyright 2022 The MediaPipe Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Placeholder for internal Python strict library and test compatibility macro.
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+py_library(
+    name = "drawing_utils",
+    srcs = ["drawing_utils.py"],
+    deps = [
+        ":face_landmarker",
+        "//cv-cuda-pipeline/tasks/python/components/containers:detections",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
+        "//third_party/py/matplotlib",
+        "@mediapipe_pip_deps_numpy//:pkg",
+    ],
+)
+
+py_library(
+    name = "drawing_styles",
+    srcs = ["drawing_styles.py"],
+    deps = [
+        ":drawing_utils",
+        ":face_landmarker",
+        ":hand_landmarker",
+        ":pose_landmarker",
+    ],
+)
+
+py_library(
+    name = "object_detector",
+    srcs = [
+        "object_detector.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:detections",
+        "//cv-cuda-pipeline/tasks/python/components/containers:detections_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "image_classifier",
+    srcs = [
+        "image_classifier.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:classification_result",
+        "//cv-cuda-pipeline/tasks/python/components/containers:classification_result_c",
+        "//cv-cuda-pipeline/tasks/python/components/processors:classifier_options",
+        "//cv-cuda-pipeline/tasks/python/components/processors:classifier_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "image_segmenter",
+    srcs = [
+        "image_segmenter.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "image_embedder",
+    srcs = [
+        "image_embedder.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:embedding_result",
+        "//cv-cuda-pipeline/tasks/python/components/containers:embedding_result_c",
+        "//cv-cuda-pipeline/tasks/python/components/utils:cosine_similarity",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "interactive_segmenter",
+    srcs = [
+        "interactive_segmenter.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+    ],
+)
+
+py_library(
+    name = "interactive_segmenter_legacy",
+    srcs = [
+        "interactive_segmenter_legacy.py",
+    ],
+    deps = [
+        ":image_segmenter",
+        "//cv-cuda-pipeline/tasks/python/components/containers:keypoint",
+        "//cv-cuda-pipeline/tasks/python/components/containers:keypoint_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+    ],
+)
+
+py_library(
+    name = "gesture_recognizer_result",
+    srcs = ["gesture_recognizer_result.py"],
+    deps = [
+        ":gesture_recognizer_result_c",
+        "//cv-cuda-pipeline/tasks/python/components/containers:category",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+    ],
+)
+
+py_library(
+    name = "gesture_recognizer_result_c",
+    srcs = ["gesture_recognizer_result_c.py"],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:category_c",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark_c",
+    ],
+)
+
+py_library(
+    name = "gesture_recognizer",
+    srcs = [
+        "gesture_recognizer.py",
+    ],
+    deps = [
+        ":gesture_recognizer_result",
+        ":gesture_recognizer_result_c",
+        "//cv-cuda-pipeline/tasks/python/components/processors:classifier_options",
+        "//cv-cuda-pipeline/tasks/python/components/processors:classifier_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "hand_landmarker",
+    srcs = [
+        "hand_landmarker.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:category",
+        "//cv-cuda-pipeline/tasks/python/components/containers:category_c",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "pose_landmarker",
+    srcs = [
+        "pose_landmarker.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "face_detector",
+    srcs = [
+        "face_detector.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:detections",
+        "//cv-cuda-pipeline/tasks/python/components/containers:detections_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)
+
+py_library(
+    name = "face_landmarker",
+    srcs = [
+        "face_landmarker.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:category",
+        "//cv-cuda-pipeline/tasks/python/components/containers:category_c",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark_c",
+        "//cv-cuda-pipeline/tasks/python/components/containers:matrix_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+        "@mediapipe_pip_deps_numpy//:pkg",
+    ],
+)
+
+py_library(
+    name = "holistic_landmarker",
+    srcs = [
+        "holistic_landmarker.py",
+    ],
+    deps = [
+        "//cv-cuda-pipeline/tasks/python/components/containers:category",
+        "//cv-cuda-pipeline/tasks/python/components/containers:category_c",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
+        "//cv-cuda-pipeline/tasks/python/components/containers:landmark_c",
+        "//cv-cuda-pipeline/tasks/python/core:async_result_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/core:base_options",
+        "//cv-cuda-pipeline/tasks/python/core:base_options_c",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
+        "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
+        "//cv-cuda-pipeline/tasks/python/core:optional_dependencies",
+        "//cv-cuda-pipeline/tasks/python/core:serial_dispatcher",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options",
+        "//cv-cuda-pipeline/tasks/python/vision/core:image_processing_options_c",
+        "//cv-cuda-pipeline/tasks/python/vision/core:vision_task_running_mode",
+    ],
+)

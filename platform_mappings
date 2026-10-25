@@ -1,0 +1,21 @@
+# This file allows automatically mapping flags such as '--cpu' to the more
+# modern Bazel platforms (https://bazel.build/concepts/platforms).
+
+# In particular, Bazel platforms lack support for Apple for now if no such
+# mapping is put into place. It's inspired from:
+# https://github.com/bazelbuild/rules_apple/issues/1764
+
+flags:
+  --cpu=darwin_x86_64
+  --apple_platform_type=macos
+    @mediapipe//cv-cuda-pipeline:macos_x86_64_platform
+
+  --cpu=darwin_arm64
+  --apple_platform_type=macos
+    @mediapipe//cv-cuda-pipeline:macos_arm64_platform
+
+  --cpu=x64_windows
+    @mediapipe//cv-cuda-pipeline:windows_platform
+
+  --cpu=k8
+    @mediapipe//cv-cuda-pipeline:linux_platform

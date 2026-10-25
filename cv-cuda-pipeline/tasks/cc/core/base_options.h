@@ -1,0 +1,181 @@
+/* Copyright 2022 The MediaPipe Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#ifndef MEDIAPIPE_TASKS_CC_CORE_BASE_OPTIONS_H_
+#define MEDIAPIPE_TASKS_CC_CORE_BASE_OPTIONS_H_
+
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
+
+#include "absl/memory/memory.h"
+#include "cv-cuda-pipeline/tasks/cc/core/host_environment.h"
+#include "cv-cuda-pipeline/tasks/cc/core/mediapipe_builtin_op_resolver.h"
+#include "cv-cuda-pipeline/tasks/cc/core/proto/base_options.pb.h"
+#include "tflite/core/api/op_resolver.h"
+
+namespace mediapipe {
+namespace tasks {
+namespace core {
+
+// Base options for MediaPipe C++ Tasks.
+struct BaseOptions {
+  // The model asset file contents as a string.
+  std::unique_ptr<std::string> model_asset_buffer;
+
+  // The path to the model asset to open and mmap in memory.
+  std::string model_asset_path = "";
+
+  // The delegate to run MediaPipe. If the delegate is not set, the default
+  // delegate CPU is used. Use `delegate_options` to configure advanced
+  // features of the selected delegate."
+  enum Delegate {
+    CPU = 0,
+    GPU = 1,
+    // NPU acceleration using LiteRT.
+    NPU = 4,
+  };
+
+  Delegate delegate = CPU;
+
+  // Options for CPU.
+  struct CpuOptions {};
+
+  // Options for GPU.
+  struct GpuOptions {
+    // The numerical precision to run inference with. Only applies to the
+    // Delegate::LiteRt::Gpu accelerator, where it maps to
+    // LiteRT::GpuOptions::Precision.
+    enum Precision {
+      DEFAULT = 0,
+      FP16 = 1,
+      FP32 = 2,
+      FP16_WITH_FP32_ACCUM = 3,
+    };
+    Precision precision = DEFAULT;
+
+    // The GPU API to run inference with. Only applies to the
+    // Delegate::LiteRt::Gpu accelerator, where it maps to
+    // LiteRT::GpuOptions::Backend.
+    enum Backend {
+      AUTOMATIC = 0,
+      OPENGL = 1,
+      OPENCL = 2,
+      WEBGPU = 3,
+    };
+    Backend backend = AUTOMATIC;
+
+    // A dir to load from and save to a pre-compiled serialized model used to
+    // accelerate init process.
+    //
+    // Applies to both the Delegate::GPU and the Delegate::LiteRt::Gpu
+    // accelerators. On Delegate::LiteRt::Gpu it maps to
+    // LiteRT::GpuOptions::CacheOptions::serialization_dir and is the only
+    // supported serialization location.
+    std::string serialized_model_dir;
+
+    // Unique token identifying the model. Used in conjunction with
+    // "serialized_model_dir". It is the caller's responsibility to ensure
+    // there is no clash of the tokens.
+    //
+    // Applies to both the Delegate::GPU and the Delegate::LiteRt::Gpu
+    // accelerators. On Delegate::LiteRt::Gpu it maps to
+    // LiteRT::GpuOptions::CacheOptions::model_cache_key.
+    std::string model_token;
+  };
+
+  // Options for NPU.
+  struct NpuOptions {
+    // The directory containing the NPU dispatch library.
+    std::string dispatch_library_directory;
+  };
+
+  // The file descriptor to a file opened with open(2), with optional additional
+  // offset and length information.
+  struct FileDescriptorMeta {
+    // File descriptor as returned by open(2).
+    int fd = -1;
+
+    // Optional length of the mapped memory. If not specified, the actual file
+    // size is used at runtime.
+    int length = -1;
+
+    // Optional starting offset in the file referred to by the file descriptor
+    // `fd`.
+    int offset = -1;
+  } model_asset_descriptor_meta;
+
+  // A non-default OpResolver to support custom Ops or specify a subset of
+  // built-in Ops.
+  std::unique_ptr<tflite::OpResolver> op_resolver =
+      absl::make_unique<MediaPipeBuiltinOpResolver>();
+
+  // Options for the chosen delegate. If not set, the default delegate options
+  // is used.
+  std::optional<std::variant<CpuOptions, GpuOptions, NpuOptions>>
+      delegate_options;
+
+  // Disallows/disables default initialization of MediaPipe graph services. This
+  // can be used to disable default OpenCL context creation so that the whole
+  // pipeline can run on CPU.
+  //
+  // Recommendation: do not use unless you have to (for example, default
+  // initialization has side effects)
+  bool disable_default_service = false;
+
+  // The environment on which the task is running, e.g. Python or Web.
+  HostEnvironment host_environment = HOST_ENVIRONMENT_UNKNOWN;
+
+  // The OS on which the task is running.
+  HostSystem host_system = HOST_SYSTEM_UNKNOWN;
+
+  // The version of the host environment.
+  // Can be left empty string if unknown.
+  std::string host_version;
+
+  // The path to the CA bundle file.
+  std::string ca_bundle_path;
+
+  // The app id of the host environment.
+  std::string app_id;
+
+  // The app version of the host environment.
+  std::string app_version;
+};
+
+// Converts a BaseOptions to a proto::BaseOptions.
+// If `use_litert` is true, LiteRT will be used for execution.
+proto::BaseOptions ConvertBaseOptionsToProto(BaseOptions* base_options,
+                                             bool use_litert = false);
+
+// Converts a proto::BaseOptions to a BaseOptions.
+// A LiteRT accelerator maps back to the equivalent `Delegate`, so the
+// CPU/GPU/NPU selection survives the conversion. Note that the choice of
+// execution engine itself does not: `BaseOptions` has no LiteRT bit, so a
+// caller that converts back with `ConvertBaseOptionsToProto` must pass
+// `use_litert` again to stay on LiteRT.
+BaseOptions ConvertProtoToBaseOptions(proto::BaseOptions&& base_options_proto);
+
+// Checks if the given base options correspond to a LiteRT LM model.
+bool IsLiteRtLmModel(const BaseOptions& base_options);
+
+}  // namespace core
+}  // namespace tasks
+}  // namespace mediapipe
+
+#endif  // MEDIAPIPE_TASKS_CC_CORE_BASE_OPTIONS_H_

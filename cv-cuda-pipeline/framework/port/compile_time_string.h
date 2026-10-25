@@ -1,0 +1,6 @@
+#ifndef MEDIAPIPE_FRAMEWORK_PORT_COMPILE_TIME_STRING_H_
+#define MEDIAPIPE_FRAMEWORK_PORT_COMPILE_TIME_STRING_H_
+
+#include "cv-cuda-pipeline/framework/deps/compile_time_string.h"
+
+#endif  // MEDIAPIPE_FRAMEWORK_PORT_COMPILE_TIME_STRING_H_

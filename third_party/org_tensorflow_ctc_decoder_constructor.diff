@@ -1,0 +1,34 @@
+diff --git a/tensorflow/core/kernels/ctc_decoder_ops.cc b/tensorflow/core/kernels/ctc_decoder_ops.cc
+--- a/tensorflow/core/kernels/ctc_decoder_ops.cc
++++ b/tensorflow/core/kernels/ctc_decoder_ops.cc
+@@ -372,6 +372,6 @@ class CTCBeamSearchDecoderOp : public OpKernel {
+   typename ctc::CTCBeamSearchDecoder<T>::DefaultBeamScorer beam_scorer_;
+   bool merge_repeated_;
+   int beam_width_;
+-  CTCBeamSearchDecoderOp<T>(const CTCBeamSearchDecoderOp<T>&) = delete;
++  CTCBeamSearchDecoderOp(const CTCBeamSearchDecoderOp<T>&) = delete;
+   void operator=(const CTCBeamSearchDecoderOp<T>&) = delete;
+ };
+diff --git a/tensorflow/core/kernels/ctc_loss_op.cc b/tensorflow/core/kernels/ctc_loss_op.cc
+--- a/tensorflow/core/kernels/ctc_loss_op.cc
++++ b/tensorflow/core/kernels/ctc_loss_op.cc
+@@ -221,7 +221,7 @@ class CTCLossOp : public OpKernel {
+   bool preprocess_collapse_repeated_;
+   bool ctc_merge_repeated_;
+   bool ignore_longer_outputs_than_inputs_;
+ 
+-  CTCLossOp<T>(const CTCLossOp<T>&) = delete;
++  CTCLossOp(const CTCLossOp<T>&) = delete;
+   void operator=(const CTCLossOp<T>&) = delete;
+ };
+diff --git a/tensorflow/core/kernels/quantized_resize_bilinear_op.cc b/tensorflow/core/kernels/quantized_resize_bilinear_op.cc
+--- a/tensorflow/core/kernels/quantized_resize_bilinear_op.cc
++++ b/tensorflow/core/kernels/quantized_resize_bilinear_op.cc
+@@ -738,6 +738,6 @@ class QuantizedResizeBilinearOp : public OpKernel {
+   bool align_corners_;
+   bool half_pixel_centers_;
+ 
+-  QuantizedResizeBilinearOp<T>(const QuantizedResizeBilinearOp<T>&) = delete;
++  QuantizedResizeBilinearOp(const QuantizedResizeBilinearOp<T>&) = delete;
+   void operator=(const QuantizedResizeBilinearOp<T>&) = delete;
+ };
