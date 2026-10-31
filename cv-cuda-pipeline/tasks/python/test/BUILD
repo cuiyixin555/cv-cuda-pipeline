@@ -26,7 +26,7 @@ py_library(
     ],
     deps = [
         "//cv-cuda-pipeline/python:_framework_bindings",
-        "//third_party/py/google/protobuf",
+        "@com_google_protobuf//:protobuf_python",
         "@mediapipe_pip_deps_absl_py//:pkg",
         "@mediapipe_pip_deps_six//:pkg",
     ],

@@ -36,10 +36,9 @@ py_library(
         "//cv-cuda-pipeline/tasks/python/test:test_utils",
         "//cv-cuda-pipeline/tasks/python/vision:hand_landmarker",
         "//cv-cuda-pipeline/tasks/python/vision:pose_landmarker",
-        "//third_party/py/google/protobuf",
+        "@com_google_protobuf//:protobuf_python",
     ],
 )
-
 
 
 

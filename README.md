@@ -103,10 +103,11 @@ cd /mnt/c/Users/xincu/cv-cuda-pipeline
 
 LD_LIBRARY_PATH=/home/cuixin/.local/opencv/usr/lib/x86_64-linux-gnu \
 GLOG_logtostderr=1 \
-bazel-bin/cv-cuda-pipeline/examples/desktop/face_detection/face_detection_cpu \
-  --calculator_graph_config_file=cv-cuda-pipeline/graphs/face_detection/face_detection_desktop_live.pbtxt \
+bazel run -c opt \
+  //cv-cuda-pipeline/examples/desktop/face_detection:face_detection_cpu -- \
+  --calculator_graph_config_file="$PWD/cv-cuda-pipeline/graphs/face_detection/face_detection_desktop_live.pbtxt" \
   --input_video_path='/mnt/c/Users/xincu/Videos/Bandicam/bandicam 2026-09-09 21-08-00-110.mp4' \
-  --output_video_path=bazel-out/face_detection_output.mp4
+  --output_video_path="$PWD/bazel-out/face_detection_output.mp4"
 ```
 
 The `LD_LIBRARY_PATH` above is for an OpenCV installation in the user's home
@@ -115,50 +116,14 @@ it with that installation's library directory; omit it if OpenCV libraries are
 available in the system library paths. The annotated video is written to
 `bazel-out/face_detection_output.mp4`.
 
+Use `bazel run` so downloaded models are available in the binary's runfiles.
+Graph, input, and output paths should be absolute because the application runs
+from the runfiles directory, not the repository root.
+
 Other desktop examples and their Bazel targets are under
 [`cv-cuda-pipeline/examples/desktop`](./cv-cuda-pipeline/examples/desktop).
 The graph configurations used by examples are under
 [`cv-cuda-pipeline/graphs`](./cv-cuda-pipeline/graphs).
-
-### CUDA image operators
-
-All 49 operator examples from the CV-CUDA `samples/operators` collection have
-C++ command-line demos and native CUDA kernels, grouped by behavior under
-[`cuda_image_ops`](./cv-cuda-pipeline/examples/desktop/cuda_image_ops):
-
-- Pixel operations: `brightness_contrast`, `channelreorder`, `color_twist`,
-  `convertto`, `flip`, `gamma_contrast`, and `threshold`.
-- Geometric and format operations: `center_crop`, `advcvtcolor`, `cvtcolor`,
-  `reformat`, `resize`, `hq_resize`, `pillowresize`, `copymakeborder`,
-  `customcrop`, `random_resized_crop`, `crop_flip_normalize_reformat`,
-  `resize_crop_convert_reformat`, `remap`, and `rotate`.
-- Filters and image statistics: `adaptivethreshold`, `averageblur`,
-  `bilateral_filter`, `boxblur`, `clahe`, `conv2d`, `erase`, `gaussian`,
-  `gaussiannoise`, `histogrameq`, `joint_bilateral_filter`, `laplacian`,
-  `median_blur`, `morphology`, and `normalize`.
-- Compositing and advanced operations: `bndbox`, `composite`,
-  `cvcuda_tv_augment`, `cvcuda_tv_color`, `cvcuda_tv_compose`,
-  `cvcuda_tv_geometry`, `cvcuda_tv_misc`, `inpaint`, `label`, `osd`, `stack`,
-  `warp_affine`, and `warp_perspective`.
-
-Set `CUDA_PATH` if the toolkit is not discoverable from `PATH` or the platform's
-default installation location, and choose the CUDA architecture supported by
-your GPU (the example below uses `sm_89`):
-
-```bash
-export CUDA_PATH=/usr/local/cuda
-bazel build --@rules_cuda//cuda:archs=sm_89 \
-  //cv-cuda-pipeline/examples/desktop/cuda_image_ops/...
-bazel test --@rules_cuda//cuda:archs=sm_89 \
-  //cv-cuda-pipeline/examples/desktop/cuda_image_ops/...
-bazel run --@rules_cuda//cuda:archs=sm_89 \
-  //cv-cuda-pipeline/examples/desktop/cuda_image_ops:cuda_image_ops -- \
-  --operator flip --input /path/to/input.jpg --output /path/to/output.jpg
-```
-
-Each operator family README documents its CLI, default parameters, and
-operator-specific limitations. The samples use OpenCV for image I/O; processing
-is performed by CUDA kernels.
 
 ## Testing
 

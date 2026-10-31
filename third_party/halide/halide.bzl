@@ -605,6 +605,7 @@ def halide_generator(
         deps = [],
         generator_name = "",
         includes = [],
+        tags = [],
         testonly = False,
         visibility = None):
     if not name.endswith(".generator"):
@@ -681,6 +682,7 @@ def halide_library_from_generator(
         halide_target_map = halide_library_default_target_map(),
         includes = [],
         namespace = None,
+        tags = [],
         testonly = False,
         visibility = None):
     if not function_name:
@@ -804,6 +806,7 @@ def halide_library(
         halide_target_map = halide_library_default_target_map(),
         includes = [],
         namespace = None,
+        tags = [],
         testonly = False,
         visibility = None):
     if not srcs and not generator_deps:

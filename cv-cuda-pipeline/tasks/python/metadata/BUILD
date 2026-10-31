@@ -26,7 +26,6 @@ py_library(
         "//cv-cuda-pipeline/tasks/metadata:schema_py",
         "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_bindings",
         "//cv-cuda-pipeline/tasks/python/core:mediapipe_c_utils",
-        "//third_party/py/tensorflow:tensorflow_no_contrib",
         "@flatbuffers//:runtime_py",
         "@mediapipe_pip_deps_numpy//:pkg",
     ],

@@ -25,7 +25,7 @@ py_library(
         ":face_landmarker",
         "//cv-cuda-pipeline/tasks/python/components/containers:detections",
         "//cv-cuda-pipeline/tasks/python/components/containers:landmark",
-        "//third_party/py/matplotlib",
+        "@mediapipe_pip_deps_matplotlib//:pkg",
         "@mediapipe_pip_deps_numpy//:pkg",
     ],
 )
