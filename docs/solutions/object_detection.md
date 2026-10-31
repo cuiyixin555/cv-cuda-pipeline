@@ -117,13 +117,6 @@ on how to build MediaPipe examples.
       --input_side_packets=input_video_path=<input video path>,output_video_path=<output video path>
     ```
 
-### Coral
-
-Please refer to
-[these instructions](https://github.com/google-ai-edge/mediapipe/tree/master/mediapipe/examples/coral/README.md)
-to cross-compile and run MediaPipe examples on the
-[Coral Dev Board](https://coral.ai/products/dev-board).
-
 ## Resources
 
 *   [Models and model cards](./models.md#object_detection)

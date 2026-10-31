@@ -574,10 +574,6 @@ load("@libedgetpu//:workspace.bzl", "libedgetpu_dependencies")
 
 libedgetpu_dependencies()
 
-load("@coral_crosstool//:configure.bzl", "cc_crosstool")
-
-cc_crosstool(name = "crosstool")
-
 load("@//third_party:external_files.bzl", "external_files")
 
 external_files()

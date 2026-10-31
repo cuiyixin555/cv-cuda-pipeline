@@ -170,13 +170,6 @@ to visualize its associated subgraphs, please see
     *   Target:
         [`mediapipe/examples/desktop/face_detection:face_detection_gpu`](https://github.com/google-ai-edge/mediapipe/tree/master/mediapipe/examples/desktop/face_detection/BUILD)
 
-### Coral
-
-Please refer to
-[these instructions](https://github.com/google-ai-edge/mediapipe/tree/master/mediapipe/examples/coral/README.md)
-to cross-compile and run MediaPipe examples on the
-[Coral Dev Board](https://coral.ai/products/dev-board).
-
 ## Resources
 
 *   Paper:
