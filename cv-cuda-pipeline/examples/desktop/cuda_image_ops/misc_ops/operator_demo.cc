@@ -1,20 +1,19 @@
-#include "cv-cuda-pipeline/examples/desktop/cuda_image_ops/misc_ops/operator_kernels.h"
-
 #include <cuda_runtime.h>
 
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <algorithm>
 #include <exception>
 #include <iostream>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "cv-cuda-pipeline/examples/desktop/cuda_image_ops/misc_ops/operator_kernels.h"
 
 namespace {
 
@@ -51,11 +50,10 @@ struct Arguments {
 };
 
 void PrintUsage(const char* executable) {
-  std::cerr
-      << "Usage: " << executable
-      << " OPERATOR INPUT OUTPUT [--background IMAGE] [--mask IMAGE]"
-         " [--input IMAGE ...] [--size WIDTHxHEIGHT]\n"
-         "Use operator_demo --help to list supported operators.\n";
+  std::cerr << "Usage: " << executable
+            << " OPERATOR INPUT OUTPUT [--background IMAGE] [--mask IMAGE]"
+               " [--input IMAGE ...] [--size WIDTHxHEIGHT]\n"
+               "Use operator_demo --help to list supported operators.\n";
 }
 
 Arguments ParseArguments(int argc, char** argv) {
@@ -149,10 +147,10 @@ void Run(const Arguments& args) {
       args.operation == "cvcuda_tv_compose" ? 224 : width;
   const int default_output_height =
       args.operation == "cvcuda_tv_compose" ? 224 : height;
-  const int output_width = args.output_width == 0 ? default_output_width
-                                                  : args.output_width;
-  const int output_height = args.output_height == 0 ? default_output_height
-                                                    : args.output_height;
+  const int output_width =
+      args.output_width == 0 ? default_output_width : args.output_width;
+  const int output_height =
+      args.output_height == 0 ? default_output_height : args.output_height;
   if ((args.output_width != 0 || args.output_height != 0) &&
       args.operation != "cvcuda_tv_compose" &&
       args.operation != "cvcuda_tv_geometry") {

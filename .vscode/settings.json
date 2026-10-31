@@ -1,0 +1,39 @@
+{
+  "clang-format.executable": "clang-format",
+  "clang-format.style": "file",
+  "clang-format.fallbackStyle": "Google",
+  "files.associations": {
+    "*.cu": "cpp",
+    "*.cuh": "cpp"
+  },
+  "[c]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[cpp]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[cuda]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[objective-c]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[objective-cpp]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[java]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[proto]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  },
+  "[proto3]": {
+    "editor.defaultFormatter": "xaver.clang-format"
+  }
+}

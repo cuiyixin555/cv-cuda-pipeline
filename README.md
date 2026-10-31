@@ -36,6 +36,26 @@ dependencies at build and run time.
 
 ## WSL setup, build, and run
 
+### VS Code formatting
+
+Open the repository root as the VS Code workspace. Install the
+`xaver.clang-format` extension in the environment where VS Code runs (in WSL
+when using Remote - WSL), and make sure `clang-format` is available on `PATH`.
+On Ubuntu, install it with `sudo apt install clang-format` if needed.
+
+The workspace [settings](./.vscode/settings.json) select clang-format for
+C/C++, CUDA, Objective-C/C++, Java, JavaScript/TypeScript, and Protocol Buffers.
+CUDA `.cu` and `.cuh` files use the C++ language mode; clang-format recognizes
+CUDA syntax from their filenames. Use **Format Document** (`Shift+Alt+F`) to
+apply the root [.clang-format](./.clang-format): Google style, two-space
+indentation, no tabs, and an 80-column limit. The configuration applies to
+files in subdirectories unless a closer `.clang-format` overrides it.
+Other languages, such as Python, Markdown, and Bazel/Starlark, retain their
+own formatters because clang-format does not support them.
+This setup does not reformat existing files or enable format-on-save.
+
+### Build and run
+
 The following commands set up a WSL Ubuntu environment. Install the JDK once:
 
 ```bash
