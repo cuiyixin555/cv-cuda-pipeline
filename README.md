@@ -139,8 +139,9 @@ the [box blur demo](./cv-cuda-pipeline/examples/image_process/boxblur/README.md)
 the [brightness and contrast demo](./cv-cuda-pipeline/examples/image_process/brightness_contrast/README.md),
 the [center crop demo](./cv-cuda-pipeline/examples/image_process/center_crop/README.md),
 the [channel reorder demo](./cv-cuda-pipeline/examples/image_process/channelreorder/README.md),
-the [CLAHE demo](./cv-cuda-pipeline/examples/image_process/clahe/README.md), and
-the [color twist demo](./cv-cuda-pipeline/examples/image_process/color_twist/README.md)
+the [CLAHE demo](./cv-cuda-pipeline/examples/image_process/clahe/README.md),
+the [color twist demo](./cv-cuda-pipeline/examples/image_process/color_twist/README.md), and
+the [composite demo](./cv-cuda-pipeline/examples/image_process/composite/README.md)
 for build and usage instructions.
 
 ## Testing
