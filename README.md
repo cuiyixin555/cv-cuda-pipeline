@@ -129,8 +129,9 @@ Image processing CUDA kernel demos are under
 [`cv-cuda-pipeline/examples/image_process`](./cv-cuda-pipeline/examples/image_process);
 see the [resize demo](./cv-cuda-pipeline/examples/image_process/resize/README.md)
 the [remap demo](./cv-cuda-pipeline/examples/image_process/remap/README.md), and
-the [flip demo](./cv-cuda-pipeline/examples/image_process/flip/README.md) for
-build and usage instructions.
+the [flip demo](./cv-cuda-pipeline/examples/image_process/flip/README.md), and
+the [adaptive threshold demo](./cv-cuda-pipeline/examples/image_process/adaptivethreshold/README.md)
+for build and usage instructions.
 
 ## Testing
 

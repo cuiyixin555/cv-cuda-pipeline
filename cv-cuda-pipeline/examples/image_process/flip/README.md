@@ -36,10 +36,17 @@ the stream to detect asynchronous errors.
 ## Nsight Systems performance
 
 On an NVIDIA RTX 500 Ada Generation Laptop GPU, using CUDA 13.3 and Nsight
-Systems 2026.1.3, the default Bazel build took **17.297 µs** for one 720 × 720
-horizontal flip kernel launch. The estimated logical bandwidth is **179.82
-GB/s**, calculated as `(720 × 720 × 6 bytes) / 17.297 µs` for one three-byte
-read and one three-byte write per pixel. This is not a hardware DRAM bandwidth
+Systems 2026.1.3 and the default Bazel build, one horizontal flip kernel launch
+per image produced:
+
+| Image | Kernel latency | Estimated effective bandwidth |
+| --- | ---: | ---: |
+| Cat, 720 × 720 | 17.297 µs | 179.82 GB/s |
+| Dinosaur, 2876 × 1699 | 229.414 µs | 127.79 GB/s |
+
+The estimated logical bandwidth is calculated as `width × height × 6 bytes`
+divided by kernel time for one three-byte read and one three-byte write per
+pixel. This is not a hardware DRAM bandwidth
 measurement; GPU performance counters were unavailable due to
 `ERR_NVGPUCTRPERM`. A single launch is not a steady-state benchmark and
 excludes transfers and image I/O.
@@ -54,4 +61,12 @@ nsys profile --trace=cuda --sample=none --cpuctxsw=none \
   --input cv-cuda-pipeline/pictures/tabby_tiger_cat.jpg \
   --output cv-cuda-pipeline/examples/image_process/flip/perf_asserts/profile_flip_cat.png
 nsys stats --report cuda_gpu_kern_sum --format csv build/flip/nsys_cat.nsys-rep
+nsys profile --trace=cuda --sample=none --cpuctxsw=none \
+  --output=build/flip/nsys_dinosaur \
+  bazel-bin/cv-cuda-pipeline/examples/image_process/flip/flip_demo \
+  --input cv-cuda-pipeline/pictures/dino.jpg \
+  --output cv-cuda-pipeline/examples/image_process/flip/perf_asserts/profile_nsys_dinosaur.png
+nsys stats --report cuda_gpu_kern_sum --format csv build/flip/nsys_dinosaur.nsys-rep
 ```
+
+Use new report names if the files already exist.

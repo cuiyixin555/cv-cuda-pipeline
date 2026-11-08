@@ -45,6 +45,13 @@ cuda_library(
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
+cuda_library(
+    name = "adaptive_threshold_kernel",
+    srcs = ["adaptive_threshold_kernel.cu"],
+    hdrs = ["adaptive_threshold_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
 alias(
     name = "remap_kernel_test",
     actual = "//cv-cuda-pipeline/calculators/image_process/cuda/tests:remap_kernel_test",
