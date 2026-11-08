@@ -134,8 +134,9 @@ the [adaptive threshold demo](./cv-cuda-pipeline/examples/image_process/adaptive
 the [advanced color conversion demo](./cv-cuda-pipeline/examples/image_process/advcvtcolor/README.md),
 the [average blur demo](./cv-cuda-pipeline/examples/image_process/averageblur/README.md),
 the [bilateral filter demo](./cv-cuda-pipeline/examples/image_process/bilateral_filter/README.md),
-the [bounding box demo](./cv-cuda-pipeline/examples/image_process/bndbox/README.md), and
-the [box blur demo](./cv-cuda-pipeline/examples/image_process/boxblur/README.md)
+the [bounding box demo](./cv-cuda-pipeline/examples/image_process/bndbox/README.md),
+the [box blur demo](./cv-cuda-pipeline/examples/image_process/boxblur/README.md), and
+the [brightness and contrast demo](./cv-cuda-pipeline/examples/image_process/brightness_contrast/README.md)
 for build and usage instructions.
 
 ## Testing

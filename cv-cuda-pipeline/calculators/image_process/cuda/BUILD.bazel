@@ -87,6 +87,13 @@ cuda_library(
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
+cuda_library(
+    name = "brightness_contrast_kernel",
+    srcs = ["brightness_contrast_kernel.cu"],
+    hdrs = ["brightness_contrast_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
 alias(
     name = "remap_kernel_test",
     actual = "//cv-cuda-pipeline/calculators/image_process/cuda/tests:remap_kernel_test",
