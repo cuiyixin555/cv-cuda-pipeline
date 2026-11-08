@@ -128,7 +128,8 @@ The graph configurations used by examples are under
 Image processing CUDA kernel demos are under
 [`cv-cuda-pipeline/examples/image_process`](./cv-cuda-pipeline/examples/image_process);
 see the [resize demo](./cv-cuda-pipeline/examples/image_process/resize/README.md)
-and [remap demo](./cv-cuda-pipeline/examples/image_process/remap/README.md) for
+the [remap demo](./cv-cuda-pipeline/examples/image_process/remap/README.md), and
+the [flip demo](./cv-cuda-pipeline/examples/image_process/flip/README.md) for
 build and usage instructions.
 
 ## Testing
