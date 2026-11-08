@@ -125,6 +125,11 @@ Other desktop examples and their Bazel targets are under
 The graph configurations used by examples are under
 [`cv-cuda-pipeline/graphs`](./cv-cuda-pipeline/graphs).
 
+Image processing CUDA kernel demos are under
+[`cv-cuda-pipeline/examples/image_process`](./cv-cuda-pipeline/examples/image_process);
+see the [resize demo README](./cv-cuda-pipeline/examples/image_process/resize/README.md)
+for build and usage instructions.
+
 ## Testing
 
 C++ unit tests are defined alongside their libraries in Bazel `BUILD` files.
