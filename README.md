@@ -131,8 +131,9 @@ see the [resize demo](./cv-cuda-pipeline/examples/image_process/resize/README.md
 the [remap demo](./cv-cuda-pipeline/examples/image_process/remap/README.md),
 the [flip demo](./cv-cuda-pipeline/examples/image_process/flip/README.md),
 the [adaptive threshold demo](./cv-cuda-pipeline/examples/image_process/adaptivethreshold/README.md),
-the [advanced color conversion demo](./cv-cuda-pipeline/examples/image_process/advcvtcolor/README.md), and
-the [average blur demo](./cv-cuda-pipeline/examples/image_process/averageblur/README.md)
+the [advanced color conversion demo](./cv-cuda-pipeline/examples/image_process/advcvtcolor/README.md),
+the [average blur demo](./cv-cuda-pipeline/examples/image_process/averageblur/README.md), and
+the [bilateral filter demo](./cv-cuda-pipeline/examples/image_process/bilateral_filter/README.md)
 for build and usage instructions.
 
 ## Testing
