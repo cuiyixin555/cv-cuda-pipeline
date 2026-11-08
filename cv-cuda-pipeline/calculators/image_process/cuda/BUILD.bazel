@@ -94,6 +94,13 @@ cuda_library(
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
+cuda_library(
+    name = "center_crop_kernel",
+    srcs = ["center_crop_kernel.cu"],
+    hdrs = ["center_crop_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
 alias(
     name = "remap_kernel_test",
     actual = "//cv-cuda-pipeline/calculators/image_process/cuda/tests:remap_kernel_test",
