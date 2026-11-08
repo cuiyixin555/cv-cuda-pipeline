@@ -101,6 +101,13 @@ cuda_library(
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
+cuda_library(
+    name = "channel_reorder_kernel",
+    srcs = ["channel_reorder_kernel.cu"],
+    hdrs = ["channel_reorder_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
 alias(
     name = "remap_kernel_test",
     actual = "//cv-cuda-pipeline/calculators/image_process/cuda/tests:remap_kernel_test",
