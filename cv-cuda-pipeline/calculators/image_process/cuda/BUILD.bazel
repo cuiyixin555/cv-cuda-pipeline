@@ -52,6 +52,13 @@ cuda_library(
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
+cuda_library(
+    name = "adv_cvt_color_kernel",
+    srcs = ["adv_cvt_color_kernel.cu"],
+    hdrs = ["adv_cvt_color_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
 alias(
     name = "remap_kernel_test",
     actual = "//cv-cuda-pipeline/calculators/image_process/cuda/tests:remap_kernel_test",

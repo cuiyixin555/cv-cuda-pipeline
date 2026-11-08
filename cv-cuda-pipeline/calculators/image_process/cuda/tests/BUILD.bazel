@@ -21,6 +21,15 @@
 # SOFTWARE.
 
 cc_test(
+    name = "adv_cvt_color_kernel_test",
+    srcs = ["adv_cvt_color_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:adv_cvt_color_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "adaptive_threshold_kernel_test",
     srcs = ["adaptive_threshold_kernel_test.cc"],
     deps = [
