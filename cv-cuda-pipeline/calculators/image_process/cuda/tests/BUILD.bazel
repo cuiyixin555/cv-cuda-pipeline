@@ -21,6 +21,15 @@
 # SOFTWARE.
 
 cc_test(
+    name = "clahe_kernel_test",
+    srcs = ["clahe_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:clahe_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "channel_reorder_kernel_test",
     srcs = ["channel_reorder_kernel_test.cc"],
     deps = [

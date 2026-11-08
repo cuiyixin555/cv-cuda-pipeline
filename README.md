@@ -137,8 +137,9 @@ the [bilateral filter demo](./cv-cuda-pipeline/examples/image_process/bilateral_
 the [bounding box demo](./cv-cuda-pipeline/examples/image_process/bndbox/README.md),
 the [box blur demo](./cv-cuda-pipeline/examples/image_process/boxblur/README.md),
 the [brightness and contrast demo](./cv-cuda-pipeline/examples/image_process/brightness_contrast/README.md),
-the [center crop demo](./cv-cuda-pipeline/examples/image_process/center_crop/README.md), and
-the [channel reorder demo](./cv-cuda-pipeline/examples/image_process/channelreorder/README.md)
+the [center crop demo](./cv-cuda-pipeline/examples/image_process/center_crop/README.md),
+the [channel reorder demo](./cv-cuda-pipeline/examples/image_process/channelreorder/README.md), and
+the [CLAHE demo](./cv-cuda-pipeline/examples/image_process/clahe/README.md)
 for build and usage instructions.
 
 ## Testing
