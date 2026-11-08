@@ -21,6 +21,17 @@
 # SOFTWARE.
 
 cc_test(
+    name = "average_blur_kernel_test",
+    srcs = ["average_blur_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:average_blur_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "adv_cvt_color_kernel_test",
     srcs = ["adv_cvt_color_kernel_test.cc"],
     deps = [
