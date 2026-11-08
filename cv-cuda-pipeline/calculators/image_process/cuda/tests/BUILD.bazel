@@ -21,6 +21,15 @@
 # SOFTWARE.
 
 cc_test(
+    name = "box_blur_kernel_test",
+    srcs = ["box_blur_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:box_blur_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "bndbox_kernel_test",
     srcs = ["bndbox_kernel_test.cc"],
     deps = [
