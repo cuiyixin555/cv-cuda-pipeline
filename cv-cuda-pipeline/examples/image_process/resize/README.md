@@ -35,7 +35,7 @@ To build and run the kernel test:
 
 ```bash
 bazel test --@rules_cuda//cuda:archs=sm_89 --test_output=errors \
-  //cv-cuda-pipeline/calculators/image_process/cuda:resize_kernel_test
+  //cv-cuda-pipeline/calculators/image_process/cuda/tests:resize_kernel_test
 ```
 
 `sm_89` is the architecture of the GPU used for testing; replace it with the
@@ -92,9 +92,9 @@ Bazel-built kernel test:
 
 ```bash
 bazel build --@rules_cuda//cuda:archs=sm_89 \
-  //cv-cuda-pipeline/calculators/image_process/cuda:resize_kernel_test
+  //cv-cuda-pipeline/calculators/image_process/cuda/tests:resize_kernel_test
 compute-sanitizer --tool memcheck --error-exitcode 1 \
-  bazel-bin/cv-cuda-pipeline/calculators/image_process/cuda/resize_kernel_test
+  bazel-bin/cv-cuda-pipeline/calculators/image_process/cuda/tests/resize_kernel_test
 ```
 
 ## Nsight Systems performance
