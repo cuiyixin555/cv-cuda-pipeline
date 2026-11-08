@@ -21,6 +21,15 @@
 # SOFTWARE.
 
 cc_test(
+    name = "bndbox_kernel_test",
+    srcs = ["bndbox_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:bndbox_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "bilateral_filter_kernel_test",
     srcs = ["bilateral_filter_kernel_test.cc"],
     deps = [
