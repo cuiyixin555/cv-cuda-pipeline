@@ -1,0 +1,21 @@
+load("@rules_cuda//cuda:defs.bzl", "cuda_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cuda_library(
+    name = "resize_kernel",
+    srcs = ["resize_kernel.cu"],
+    hdrs = ["resize_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cc_test(
+    name = "resize_kernel_test",
+    srcs = ["resize_kernel_test.cc"],
+    deps = [
+        ":resize_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)

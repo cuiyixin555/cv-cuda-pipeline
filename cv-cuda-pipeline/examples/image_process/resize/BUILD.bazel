@@ -1,0 +1,11 @@
+cc_binary(
+    name = "resize_demo",
+    srcs = ["resize_demo.cpp"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:resize_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgcodecs",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
