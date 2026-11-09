@@ -21,6 +21,63 @@
 # SOFTWARE.
 
 cc_test(
+    name = "threshold_kernel_test",
+    srcs = ["threshold_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:threshold_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "crop_flip_normalize_reformat_kernel_test",
+    srcs = ["crop_flip_normalize_reformat_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:crop_flip_normalize_reformat_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "customcrop_kernel_test",
+    srcs = ["customcrop_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:customcrop_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "copymakeborder_kernel_test",
+    srcs = ["copymakeborder_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:copymakeborder_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "convertto_kernel_test",
+    srcs = ["convertto_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:convertto_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "conv2d_kernel_test",
+    srcs = ["conv2d_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:conv2d_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "composite_kernel_test",
     srcs = ["composite_kernel_test.cc"],
     deps = [

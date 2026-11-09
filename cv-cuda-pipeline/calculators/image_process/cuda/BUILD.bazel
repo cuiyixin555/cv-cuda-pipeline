@@ -129,6 +129,48 @@ cuda_library(
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
+cuda_library(
+    name = "conv2d_kernel",
+    srcs = ["conv2d_kernel.cu"],
+    hdrs = ["conv2d_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "convertto_kernel",
+    srcs = ["convertto_kernel.cu"],
+    hdrs = ["convertto_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "copymakeborder_kernel",
+    srcs = ["copymakeborder_kernel.cu"],
+    hdrs = ["copymakeborder_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "customcrop_kernel",
+    srcs = ["customcrop_kernel.cu"],
+    hdrs = ["customcrop_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "crop_flip_normalize_reformat_kernel",
+    srcs = ["crop_flip_normalize_reformat_kernel.cu"],
+    hdrs = ["crop_flip_normalize_reformat_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "threshold_kernel",
+    srcs = ["threshold_kernel.cu"],
+    hdrs = ["threshold_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
 alias(
     name = "remap_kernel_test",
     actual = "//cv-cuda-pipeline/calculators/image_process/cuda/tests:remap_kernel_test",
