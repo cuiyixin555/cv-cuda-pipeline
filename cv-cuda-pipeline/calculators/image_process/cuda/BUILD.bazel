@@ -32,6 +32,20 @@ cuda_library(
 )
 
 cuda_library(
+    name = "quality_resize_kernel",
+    srcs = ["quality_resize_kernel.cu"],
+    hdrs = ["quality_resize_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "inpaint_kernel",
+    srcs = ["inpaint_kernel.cu"],
+    hdrs = ["inpaint_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
     name = "remap_kernel",
     srcs = ["remap_kernel.cu"],
     hdrs = ["remap_kernel.h"],
@@ -70,6 +84,13 @@ cuda_library(
     name = "bilateral_filter_kernel",
     srcs = ["bilateral_filter_kernel.cu"],
     hdrs = ["bilateral_filter_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "joint_bilateral_filter_kernel",
+    srcs = ["joint_bilateral_filter_kernel.cu"],
+    hdrs = ["joint_bilateral_filter_kernel.h"],
     deps = ["@local_cuda//:cuda_runtime"],
 )
 
@@ -169,6 +190,118 @@ cuda_library(
     srcs = ["threshold_kernel.cu"],
     hdrs = ["threshold_kernel.h"],
     deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "gamma_contrast_kernel",
+    srcs = ["gamma_contrast_kernel.cu"],
+    hdrs = ["gamma_contrast_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "erase_kernel",
+    srcs = ["erase_kernel.cu"],
+    hdrs = ["erase_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "gaussian_kernel",
+    srcs = ["gaussian_kernel.cu"],
+    hdrs = ["gaussian_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "morphology_kernel",
+    srcs = ["morphology_kernel.cu"],
+    hdrs = ["morphology_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "cvtcolor_kernel",
+    srcs = ["cvtcolor_kernel.cu"],
+    hdrs = ["cvtcolor_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "laplacian_kernel",
+    srcs = ["laplacian_kernel.cu"],
+    hdrs = ["laplacian_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "rotate_kernel",
+    srcs = ["rotate_kernel.cu"],
+    hdrs = ["rotate_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "normalize_kernel",
+    srcs = ["normalize_kernel.cu"],
+    hdrs = ["normalize_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "stack_kernel",
+    srcs = ["stack_kernel.cu"],
+    hdrs = ["stack_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "reformat_kernel",
+    srcs = ["reformat_kernel.cu"],
+    hdrs = ["reformat_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "median_blur_kernel",
+    srcs = ["median_blur_kernel.cu"],
+    hdrs = ["median_blur_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "gaussiannoise_kernel",
+    srcs = ["gaussiannoise_kernel.cu"],
+    hdrs = ["gaussiannoise_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "warp_kernel",
+    srcs = ["warp_kernel.cu"],
+    hdrs = ["warp_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "histogrameq_kernel",
+    srcs = ["histogrameq_kernel.cu"],
+    hdrs = ["histogrameq_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cuda_library(
+    name = "resize_crop_convert_reformat_kernel",
+    srcs = ["resize_crop_convert_reformat_kernel.cu"],
+    hdrs = ["resize_crop_convert_reformat_kernel.h"],
+    deps = ["@local_cuda//:cuda_runtime"],
+)
+
+cc_library(
+    name = "random_resized_crop",
+    srcs = ["random_resized_crop.cc"],
+    hdrs = ["random_resized_crop.h"],
+    visibility = ["//visibility:public"],
 )
 
 alias(

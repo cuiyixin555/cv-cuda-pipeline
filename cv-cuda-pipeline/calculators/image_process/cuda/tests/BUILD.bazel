@@ -21,6 +21,182 @@
 # SOFTWARE.
 
 cc_test(
+    name = "inpaint_kernel_test",
+    srcs = ["inpaint_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:inpaint_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "joint_bilateral_filter_kernel_test",
+    srcs = ["joint_bilateral_filter_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:joint_bilateral_filter_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "quality_resize_kernel_test",
+    srcs = ["quality_resize_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:quality_resize_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "reformat_kernel_test",
+    srcs = ["reformat_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:reformat_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "median_blur_kernel_test",
+    srcs = ["median_blur_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:median_blur_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "gaussiannoise_kernel_test",
+    srcs = ["gaussiannoise_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:gaussiannoise_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "warp_kernel_test",
+    srcs = ["warp_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:warp_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "histogrameq_kernel_test",
+    srcs = ["histogrameq_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:histogrameq_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "resize_crop_convert_reformat_kernel_test",
+    srcs = ["resize_crop_convert_reformat_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:resize_crop_convert_reformat_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "random_resized_crop_test",
+    srcs = ["random_resized_crop_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:random_resized_crop",
+    ],
+)
+
+cc_test(
+    name = "stack_kernel_test",
+    srcs = ["stack_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:stack_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "normalize_kernel_test",
+    srcs = ["normalize_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:normalize_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "rotate_kernel_test",
+    srcs = ["rotate_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:rotate_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "laplacian_kernel_test",
+    srcs = ["laplacian_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:laplacian_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "cvtcolor_kernel_test",
+    srcs = ["cvtcolor_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:cvtcolor_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "morphology_kernel_test",
+    srcs = ["morphology_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:morphology_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "gaussian_kernel_test",
+    srcs = ["gaussian_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:gaussian_kernel",
+        "//cv-cuda-pipeline/framework/port:opencv_core",
+        "//cv-cuda-pipeline/framework/port:opencv_imgproc",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "erase_kernel_test",
+    srcs = ["erase_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:erase_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
+    name = "gamma_contrast_kernel_test",
+    srcs = ["gamma_contrast_kernel_test.cc"],
+    deps = [
+        "//cv-cuda-pipeline/calculators/image_process/cuda:gamma_contrast_kernel",
+        "@local_cuda//:cuda_runtime",
+    ],
+)
+
+cc_test(
     name = "threshold_kernel_test",
     srcs = ["threshold_kernel_test.cc"],
     deps = [
